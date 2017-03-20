@@ -179,8 +179,11 @@ func (w *Work) CheckRegistryAlarmLoop() {
 }
 
 func (w *Work) HandleEvent(ns, alarmversion string, alertData models.AlertData) error {
-	// TODO check exist or not
-	alarm := loda.Loda.NsAlarms[ns][alarmversion]
+	alarm, ok := loda.Loda.NsAlarms[ns][alarmversion]
+	if !ok {
+		log.Errorf("read ns %s alarm %s alarm data error", ns, alarmversion)
+		return errors.New("event process error: not have alarm data")
+	}
 	alertData.Time = alertData.Time.Local()
 
 	host, ok := alertData.Host()

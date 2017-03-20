@@ -14,21 +14,18 @@ import (
 
 var mailSuffix, mailSubject string
 
-func init() {
-	mailSuffix = config.GetConfig().Mail.MailSuffix
-
+func SendEMail(alertMsg models.AlertMsg) error {
 	mailSubject = config.GetConfig().Mail.MailSubject
 	if mailSubject == "" {
 		mailSubject = "monitor alert"
 	}
-}
 
-// TODO
-func SendEMail(alertMsg models.AlertMsg) error {
 	revieve := make([]string, len(alertMsg.Users))
+	mailSuffix = config.GetConfig().Mail.MailSuffix
 	for index, username := range alertMsg.Users {
 		revieve[index] = username + mailSuffix
 	}
+
 	return SendMail(config.GetConfig().Mail.Host, config.GetConfig().Mail.Port, config.GetConfig().Mail.User, config.GetConfig().Mail.Pwd,
 		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""}, mailSubject, alertMsg.Msg)
 }
