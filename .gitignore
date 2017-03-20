@@ -1,0 +1,6 @@
+_test
+
+*.test
+*.prof
+
+cmd/event/event
