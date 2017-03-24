@@ -8,7 +8,7 @@ var (
 	TagHost = "host"
 )
 
-type AlertData struct {
+type EventData struct {
 	ID       string        `json:"id"`
 	Message  string        `json:"message"`
 	Details  string        `json:"-"`
@@ -16,6 +16,8 @@ type AlertData struct {
 	Duration time.Duration `json:"duration"`
 	Level    string        `json:"level"`
 	Data     Result        `json:"data"`
+
+	Ns string `json:"_"`
 }
 
 type Result struct {
@@ -38,18 +40,18 @@ type Row struct {
 	Values  [][]interface{}   `json:"values,omitempty"`
 }
 
-func (a *AlertData) HasData() bool {
-	if len(a.Data.Series) == 0 {
+func (e *EventData) HasData() bool {
+	if len(e.Data.Series) == 0 {
 		return false
 	}
 	return true
 }
 
-func (a *AlertData) Host() (string, bool) {
-	if !a.HasData() {
+func (e *EventData) Host() (string, bool) {
+	if !e.HasData() {
 		return "", false
 	}
 
-	host, ok := a.Data.Series[0].Tags[TagHost]
+	host, ok := e.Data.Series[0].Tags[TagHost]
 	return host, ok
 }
