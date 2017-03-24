@@ -43,15 +43,15 @@ func postDataHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var alertData models.AlertData
-	if err = json.Unmarshal(body, &alertData); err != nil {
+	var eventData models.EventData
+	if err = json.Unmarshal(body, &eventData); err != nil {
 		log.Errorf("Json unmarshal error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "parse json error")
 		return
 	}
 
 	ns := versionSplit[0]
-	err = worker.HandleEvent(ns, alarmversion, alertData)
+	err = worker.HandleEvent(ns, alarmversion, eventData)
 	if err != nil {
 		log.Errorf("Work handle event error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle event error")
@@ -60,6 +60,6 @@ func postDataHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// just return the origin influxdb rs
 	resp.Header().Add("Content-Type", "application/json")
-	succResp(resp, "OK", alertData)
+	succResp(resp, "OK", eventData)
 	resp.WriteHeader(200)
 }

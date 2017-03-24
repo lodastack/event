@@ -12,12 +12,17 @@ import (
 	"github.com/lodastack/event/models"
 )
 
+const (
+	timeFormat     = "2006-01-02 15:04:05"
+	defaultSubject = "monitor alert"
+)
+
 var mailSuffix, mailSubject string
 
 func SendEMail(alertMsg models.AlertMsg) error {
 	mailSubject = config.GetConfig().Mail.MailSubject
 	if mailSubject == "" {
-		mailSubject = "monitor alert"
+		mailSubject = defaultSubject
 	}
 
 	revieve := make([]string, len(alertMsg.Users))
@@ -26,8 +31,22 @@ func SendEMail(alertMsg models.AlertMsg) error {
 		revieve[index] = username + mailSuffix
 	}
 
+	var msg string
+	if alertMsg.Msg != "" {
+		msg = alertMsg.Msg
+	} else {
+		msg = fmt.Sprintf("%s   %s   is  %s</br>ns: %s</br>tags: %+v </br>value: %.2f </br></br>time: %v",
+			alertMsg.Host,
+			alertMsg.Measurement,
+			alertMsg.Level,
+			alertMsg.Ns,
+			alertMsg.Tags,
+			alertMsg.Value,
+			alertMsg.Time.Format(timeFormat))
+	}
+
 	return SendMail(config.GetConfig().Mail.Host, config.GetConfig().Mail.Port, config.GetConfig().Mail.User, config.GetConfig().Mail.Pwd,
-		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""}, mailSubject, alertMsg.Msg)
+		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""}, mailSubject, msg)
 }
 
 func catchPanic(err *error, functionName string) {
