@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/lodastack/event/cluster"
-	"github.com/lodastack/event/common"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 	m "github.com/lodastack/models"
@@ -18,7 +17,7 @@ import (
 var (
 	interval     time.Duration = 20
 	AllEventPath               = "all"
-	timeFormat                 = "2006-01-02T15:04:05"
+	timeFormat                 = "2006-01-02 15:04:05"
 
 	nsPeroidDefault   = 5
 	hostPeroidDefault = 5
@@ -113,10 +112,10 @@ func (w *Work) ReadAllNsBlock() {
 							msg += readEtcdLastSplit(n.Key) + "</br>"
 						}
 
-						if err := sendOutput(
+						if err := sendMulit(
 							strings.Split(alarm.AlarmData.Alert, ","),
 							strings.Split(alarm.AlarmData.Groups, ","),
-							msg+"</br>"); err != nil {
+							msg); err != nil {
 							log.Error("work output error:", err.Error())
 						}
 						if err := w.Cluster.DeleteDir(alarmNode.Key + "/" + AllEventPath); err != nil {
@@ -178,27 +177,28 @@ func (w *Work) CheckRegistryAlarmLoop() {
 	}
 }
 
-func (w *Work) HandleEvent(ns, alarmversion string, alertData models.AlertData) error {
+func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) error {
 	alarm, ok := loda.Loda.NsAlarms[ns][alarmversion]
 	if !ok {
 		log.Errorf("read ns %s alarm %s alarm data error", ns, alarmversion)
 		return errors.New("event process error: not have alarm data")
 	}
-	alertData.Time = alertData.Time.Local()
+	eventData.Time = eventData.Time.Local()
+	eventData.Ns = ns
 
-	host, ok := alertData.Host()
+	host, ok := eventData.Host()
 	if !ok {
-		log.Errorf("event data has no host: %+v", alertData)
+		log.Errorf("event data has no host: %+v", eventData)
 		return errors.New("event has no host")
 	}
 
 	// ID format: "time:measurement:tags"
 	block := false
-	eventId := alertData.Time.Format(timeFormat) + ":" + alertData.ID
+	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID
 	allPath := ns + "/" + alarm.AlarmData.Version + "/" + AllEventPath
 	if err := w.Cluster.SetWithTTL(
 		allPath+"/"+eventId,
-		alertData.Message,
+		eventData.Message,
 		time.Duration(alarm.NsBlockPeriod)*time.Minute); err != nil {
 		log.Errorf("set ns %s alarm %s fail: %s",
 			ns, alarm.AlarmData.Version, err.Error())
@@ -215,7 +215,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, alertData models.AlertData) 
 	hostPath := ns + "/" + alarm.AlarmData.Version + "/" + host
 	if err := w.Cluster.SetWithTTL(
 		hostPath+"/"+eventId,
-		alertData.Message,
+		eventData.Message,
 		time.Duration(alarm.HostBlockPeriod)*time.Minute); err != nil {
 		log.Errorf("set ns %s alarm %s fail: %s",
 			ns, alarm.AlarmData.Version, err.Error())
@@ -226,33 +226,15 @@ func (w *Work) HandleEvent(ns, alarmversion string, alertData models.AlertData) 
 		fmt.Printf("####  host: %+v %d\n", rep.Action, len(rep.Node.Nodes))
 		if !block && len(rep.Node.Nodes) <= alarm.HostBlockTimes {
 			// read from alarm.AlarmData.Groups
-			if err := sendOutput(
+
+			if err := sendOne(
 				strings.Split(alarm.AlarmData.Alert, ","),
 				strings.Split(alarm.AlarmData.Groups, ","),
-				alertData.Message+"\n"+alertData.Time.Format(timeFormat)); err != nil {
+				eventData); err != nil {
 				log.Error("work output error:", err.Error())
 			}
 		}
 	}
 
-	return nil
-}
-
-func sendOutput(alertTypes []string, groups []string, msg string) error {
-	recieves := make([]string, 0)
-	for _, gname := range groups {
-		users, err := loda.GetUserByGroup(gname)
-		if err != nil {
-			continue
-		}
-		recieves = append(recieves, users...)
-	}
-	recieves = common.RemoveDuplicateAndEmpty(recieves)
-	if len(recieves) == 0 {
-		return errors.New("empty recieve")
-	}
-	// TODO: error
-
-	go send(alertTypes, models.NewAlertMsg(recieves, msg))
 	return nil
 }
