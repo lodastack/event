@@ -3,8 +3,14 @@ package requests
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"time"
+
+	"github.com/lodastack/log"
 )
 
 func PostBytes(url string, data []byte) (*Resp, error) {
@@ -51,4 +57,39 @@ func getReader(obj interface{}) (io.Reader, error) {
 		rs := bytes.NewReader(bs)
 		return rs, nil
 	}
+}
+
+func PostWithHeader(URL string, queryMap map[string]string, body []byte, header map[string]string, timeout int) ([]byte, error) {
+	if timeout == 0 {
+		timeout = 5
+	}
+	client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
+	var q string
+	for k, v := range queryMap {
+		q += k + "=" + url.QueryEscape(v) + "&"
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, URL+"?"+q, bytes.NewBuffer(body))
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Error("post fail: %s", err.Error())
+		return nil, err
+	}
+	defer res.Body.Close()
+	resp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error("read response fail: %s", err.Error())
+		return nil, err
+	}
+
+	if res.StatusCode > 299 {
+		log.Error("return status not 2xx, request: %s, return body: %s", URL+"?"+q, string(resp))
+		return nil, errors.New("response status not OK")
+	}
+
+	return resp, nil
 }

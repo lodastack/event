@@ -15,15 +15,15 @@ import (
 const (
 	timeFormat     = "2006-01-02 15:04:05"
 	defaultSubject = "monitor alert"
+	OK             = "OK"
+
+	multi = "convergence"
 )
 
 var mailSuffix, mailSubject string
 
 func SendEMail(alertMsg models.AlertMsg) error {
-	mailSubject = config.GetConfig().Mail.MailSubject
-	if mailSubject == "" {
-		mailSubject = defaultSubject
-	}
+	var subject string
 
 	revieve := make([]string, len(alertMsg.Users))
 	mailSuffix = config.GetConfig().Mail.MailSuffix
@@ -33,20 +33,49 @@ func SendEMail(alertMsg models.AlertMsg) error {
 
 	var msg string
 	if alertMsg.Msg != "" {
-		msg = alertMsg.Msg
+		subject = "alert: " + alertMsg.AlarmName
+		msg = alertMsg.AlarmName + " " + multi + "\n" +
+			"Ns:  " + alertMsg.Ns + "\n" +
+			alertMsg.Msg
+		msg = strings.Replace(msg, "\n", "</br>", -1)
 	} else {
-		msg = fmt.Sprintf("%s   %s   is  %s</br>ns: %s</br>tags: %+v </br>value: %.2f </br></br>time: %v",
-			alertMsg.Host,
-			alertMsg.Measurement,
-			alertMsg.Level,
-			alertMsg.Ns,
-			alertMsg.Tags,
-			alertMsg.Value,
-			alertMsg.Time.Format(timeFormat))
+		subject = fmt.Sprintf("%s   %s   is  %s",
+			alertMsg.Host, alertMsg.Measurement, alertMsg.Level)
+		msg = genMailContent(alertMsg)
 	}
 
-	return SendMail(config.GetConfig().Mail.Host, config.GetConfig().Mail.Port, config.GetConfig().Mail.User, config.GetConfig().Mail.Pwd,
-		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""}, mailSubject, msg)
+	return SendMail(config.GetConfig().Mail.Host,
+		config.GetConfig().Mail.Port,
+		config.GetConfig().Mail.User,
+		config.GetConfig().Mail.Pwd,
+		config.GetConfig().Mail.User+mailSuffix,
+		revieve, []string{""},
+		subject,
+		msg)
+}
+
+func genMailContent(alertMsg models.AlertMsg) string {
+	var tagDescribe string
+	for k, v := range alertMsg.Tags {
+		tagDescribe += k + ":\t" + v + "</br>"
+	}
+	tagDescribe = tagDescribe[:len(tagDescribe)-5]
+
+	var levelColor string
+	if alertMsg.Level == OK {
+		levelColor = "green"
+	} else {
+		levelColor = "red"
+	}
+	status := fmt.Sprintf("<font style=\"color:%s\">%s</font>", levelColor, alertMsg.Level)
+
+	return fmt.Sprintf("%s\t%s</br></br>ns: %s</br>%s </br>value: %.2f </br></br>time: %v",
+		alertMsg.AlarmName,
+		status,
+		alertMsg.Ns,
+		tagDescribe,
+		alertMsg.Value,
+		alertMsg.Time.Format(timeFormat))
 }
 
 func catchPanic(err *error, functionName string) {

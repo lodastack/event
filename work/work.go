@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lodastack/event/cluster"
+	"github.com/lodastack/event/common"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 	m "github.com/lodastack/models"
@@ -77,6 +78,11 @@ func readEtcdLastSplit(etcdKey string) string {
 	return etcdKeySplit[len(etcdKeySplit)-1]
 }
 
+func readHostFromEtcdKey(etcdKey string) string {
+	etcdKeySplit := strings.Split(etcdKey, ":")
+	return etcdKeySplit[len(etcdKeySplit)-1]
+}
+
 func (w *Work) ReadAllNsBlock() {
 	for {
 		rep, err := w.Cluster.RecursiveGet("")
@@ -84,6 +90,7 @@ func (w *Work) ReadAllNsBlock() {
 			log.Error("ReadAllNsBlock read root fail:", err.Error())
 			continue
 		}
+		// loop etcd ns path
 		for _, nsNode := range rep.Node.Nodes {
 			ns := readEtcdLastSplit(nsNode.Key)
 			rep, err := w.Cluster.RecursiveGet(nsNode.Key)
@@ -91,13 +98,17 @@ func (w *Work) ReadAllNsBlock() {
 				log.Errorf("ReadAllNsBlock read %s fail: %s", nsNode.Key, err.Error())
 				continue
 			}
+			// loop alarm of the ns
 			for _, alarmNode := range rep.Node.Nodes {
 				alarmVersion := readEtcdLastSplit(alarmNode.Key)
 				loda.Loda.RLock()
 				alarm, ok := loda.Loda.NsAlarms[ns][alarmVersion]
 				loda.Loda.RUnlock()
 				if !ok {
-					log.Errorf("Read ns %s alarm %s fail", ns, alarmVersion)
+					log.Errorf("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
+					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
+						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
+					}
 					continue
 				}
 				rep, err := w.Cluster.RecursiveGet(alarmNode.Key + "/" + AllEventPath)
@@ -107,12 +118,16 @@ func (w *Work) ReadAllNsBlock() {
 				}
 				if len(rep.Node.Nodes) != 0 {
 					if len(rep.Node.Nodes) >= alarm.NsBlockTimes {
-						msg := "报警收敛：</br>"
-						for _, n := range rep.Node.Nodes {
-							msg += readEtcdLastSplit(n.Key) + "</br>"
+						hosts := make([]string, len(rep.Node.Nodes))
+						for index, n := range rep.Node.Nodes {
+							hosts[index] = readHostFromEtcdKey(n.Key)
 						}
+						msg := "Host:  " +
+							strings.Join(common.RemoveDuplicateAndEmpty(hosts), ",")
 
 						if err := sendMulit(
+							ns,
+							alarm.AlarmData.Name,
 							strings.Split(alarm.AlarmData.Alert, ","),
 							strings.Split(alarm.AlarmData.Groups, ","),
 							msg); err != nil {
@@ -194,7 +209,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 
 	// ID format: "time:measurement:tags"
 	block := false
-	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID
+	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
 	allPath := ns + "/" + alarm.AlarmData.Version + "/" + AllEventPath
 	if err := w.Cluster.SetWithTTL(
 		allPath+"/"+eventId,
@@ -225,9 +240,10 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	} else {
 		fmt.Printf("####  host: %+v %d\n", rep.Action, len(rep.Node.Nodes))
 		if !block && len(rep.Node.Nodes) <= alarm.HostBlockTimes {
-			// read from alarm.AlarmData.Groups
-
 			if err := sendOne(
+				alarm.AlarmData.Name,
+				// TODO: relative/deadman
+				alarm.AlarmData.Expression+alarm.AlarmData.Value,
 				strings.Split(alarm.AlarmData.Alert, ","),
 				strings.Split(alarm.AlarmData.Groups, ","),
 				eventData); err != nil {
