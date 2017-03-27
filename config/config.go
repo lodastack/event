@@ -22,6 +22,7 @@ type Config struct {
 	Reg  RegistryConfig `toml:"registry"`
 	Etcd EtcdConfig     `toml:"etcd"`
 	Mail MailConfig     `toml:"mail"`
+	Sms  SmsConfig      `toml:"sms"`
 	Log  LogConfig      `toml:"log"`
 
 	EtcdConfig client.Config `toml:"-"`
@@ -42,6 +43,11 @@ type MailConfig struct {
 
 	MailSuffix  string `toml:"mailsuffix"`
 	MailSubject string `toml:"subject"`
+}
+
+type SmsConfig struct {
+	Token string `toml:token`
+	Url   string `toml:url`
 }
 
 type CommonConfig struct {

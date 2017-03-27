@@ -12,16 +12,20 @@ type AlertMsg struct {
 	Tags        map[string]string
 	Value       float64
 	Time        time.Time
+	AlarmName   string
+	Expression  string
 
 	Msg string
 }
 
-func NewAlertMsg(ns, host, measurement, level string,
-	tags map[string]string, value float64, time time.Time) AlertMsg {
+func NewAlertMsg(ns, host, measurement, level string, alarmName string,
+	expression string, tags map[string]string, value float64, time time.Time) AlertMsg {
 	return AlertMsg{
 		Ns:          ns,
 		Host:        host,
 		Measurement: measurement,
+		AlarmName:   alarmName,
+		Expression:  expression,
 		Level:       level,
 		Tags:        tags,
 		Value:       value,
