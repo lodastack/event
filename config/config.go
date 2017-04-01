@@ -41,8 +41,8 @@ type MailConfig struct {
 	Host string `toml:"host"`
 	Port int    `toml:"port"`
 
-	MailSuffix  string `toml:"mailsuffix"`
-	MailSubject string `toml:"subject"`
+	MailSuffix    string `toml:"mailsuffix"`
+	SubjectPrefix string `toml:subjectprefix`
 }
 
 type SmsConfig struct {

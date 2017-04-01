@@ -33,9 +33,9 @@ func SendEMail(alertMsg models.AlertMsg) error {
 
 	var msg string
 	if alertMsg.Msg != "" {
-		subject = "alert: " + alertMsg.AlarmName
+		subject = alertMsg.AlarmName
 		msg = alertMsg.AlarmName + " " + multi + "\n" +
-			"Ns:  " + alertMsg.Ns + "\n" +
+			"Ns:  " + alertMsg.Ns + "\nalert too many\n" +
 			alertMsg.Msg
 		msg = strings.Replace(msg, "\n", "</br>", -1)
 	} else {
@@ -43,6 +43,7 @@ func SendEMail(alertMsg models.AlertMsg) error {
 			alertMsg.Host, alertMsg.Measurement, alertMsg.Level)
 		msg = genMailContent(alertMsg)
 	}
+	subject = config.GetConfig().Mail.SubjectPrefix + " " + subject
 
 	return SendMail(config.GetConfig().Mail.Host,
 		config.GetConfig().Mail.Port,

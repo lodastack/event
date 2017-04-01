@@ -29,7 +29,7 @@ func SendSMS(alertMsg models.AlertMsg) error {
 	var msg string
 	if alertMsg.Msg != "" {
 		msg = alertMsg.AlarmName + " " + multi + "\n" +
-			"Ns:  " + alertMsg.Ns + "\n" +
+			"Ns:  " + alertMsg.Ns + "\nalert too many\n" +
 			alertMsg.Msg
 		msg = strings.Replace(msg, "\n", "\r\n", -1)
 	} else {
