@@ -123,7 +123,7 @@ func (w *Work) ReadAllNsBlock() {
 							hosts[index] = readHostFromEtcdKey(n.Key)
 						}
 						msg := "Host:  " +
-							strings.Join(common.RemoveDuplicateAndEmpty(hosts), ",")
+							strings.Join(common.RemoveDuplicateAndEmpty(hosts), ",\n")
 
 						if err := sendMulit(
 							ns,
