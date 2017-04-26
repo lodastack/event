@@ -55,6 +55,8 @@ type CommonConfig struct {
 	InfluxdPort        int    `toml:"influxdPort"`
 	TopicsPollInterval int    `toml:"topicsPollInterval"`
 	HiddenMetricSuffix string `toml:"hiddenMetricSuffix"`
+
+	EventLogNs string `toml:"eventLogNs"`
 }
 
 type LogConfig struct {
