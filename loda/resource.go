@@ -45,12 +45,11 @@ func PurgeAll() {
 	}
 }
 
-func AllNS(url string) ([]string, error) {
+func AllNS() ([]string, error) {
 	var resNS RespNS
 	var res []string
-	if url == "" {
-		url = fmt.Sprintf("%s/api/v1/event/ns?ns=&format=list", config.GetConfig().Reg.Link)
-	}
+	url := fmt.Sprintf("%s/api/v1/event/ns?ns=&format=list", config.GetConfig().Reg.Link)
+
 	resp, err := requests.Get(url)
 	if err != nil {
 		log.Errorf("get all ns error: %s", err.Error())
@@ -68,7 +67,15 @@ func AllNS(url string) ([]string, error) {
 	return res, fmt.Errorf("http status code: %d", resp.Status)
 }
 
-func GetAlarmsByNs(ns string) ([]m.Alarm, error) {
+func getAlarmsMap(list []m.Alarm) map[string]m.Alarm {
+	alarmMap := make(map[string]m.Alarm, len(list))
+	for _, alarm := range list {
+		alarmMap[alarm.Version] = alarm
+	}
+	return alarmMap
+}
+
+func GetAlarmsByNs(ns string) (map[string]m.Alarm, error) {
 	var resAlarms ResAlarm
 	resAlarms = ResAlarm{} // TODO
 
@@ -76,13 +83,13 @@ func GetAlarmsByNs(ns string) ([]m.Alarm, error) {
 	resp, err := requests.Get(url)
 	if err != nil {
 		log.Errorf("get alarm of ns %s error: %s", ns, err.Error())
-		return resAlarms.Data, err
+		return nil, err
 	}
 
 	if resp.Status != 200 {
 		log.Errorf("get alarm of ns %s error: %+v", ns, resp)
-		return resAlarms.Data, fmt.Errorf("query registry error")
+		return nil, fmt.Errorf("query registry error")
 	}
 	err = json.Unmarshal(resp.Body, &resAlarms)
-	return resAlarms.Data, err
+	return getAlarmsMap(resAlarms.Data), err
 }

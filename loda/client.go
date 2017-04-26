@@ -30,7 +30,7 @@ func init() {
 }
 
 func (l *lodaAlarm) UpdateAlarms() error {
-	allNs, err := AllNS("")
+	allNs, err := AllNS()
 	if err != nil {
 		fmt.Println("UpdateAlarms error:", err)
 		return err
@@ -39,7 +39,12 @@ func (l *lodaAlarm) UpdateAlarms() error {
 	defer l.Unlock()
 
 	for ns := range l.NsAlarms {
+		// check removed ns
 		if _, ok := common.ContainString(allNs, ns); !ok {
+			// TODO: stop
+			for version := range l.NsAlarms[ns] {
+				l.NsAlarms[ns][version].Stop()
+			}
 			delete(l.NsAlarms, ns)
 		}
 	}
@@ -48,30 +53,32 @@ func (l *lodaAlarm) UpdateAlarms() error {
 		if _, ok := l.NsAlarms[ns]; !ok {
 			l.NsAlarms[ns] = map[string]*Alarm{}
 		}
-		alarms, err := GetAlarmsByNs(ns)
+		alarmMap, err := GetAlarmsByNs(ns)
 		if err != nil {
 			log.Errorf("get alarm fail: %s", err.Error())
 			return err
 		}
-		if len(alarms) == 0 {
+		if len(alarmMap) == 0 {
 			continue
 		}
-		for _, alarm := range alarms {
-			oldAlarm, ok := l.NsAlarms[ns][alarm.Version]
+		// check new alarm
+		for version, alarm := range alarmMap {
+			_, ok := l.NsAlarms[ns][version]
 			if !ok {
 				l.NsAlarms[ns][alarm.Version] = newAlarm(alarm)
 				go l.NsAlarms[ns][alarm.Version].Run(l.CleanChannel)
-			} else {
-				if !ifAlarmChanged(oldAlarm.AlarmData, alarm) {
-					continue
-				}
-				l.NsAlarms[ns][alarm.Version].Update(alarm, l.CleanChannel)
 			}
-
 		}
+
 		// check removed alarm
+		for oldAlarmVersion := range l.NsAlarms[ns] {
+			if _, ok := alarmMap[oldAlarmVersion]; !ok {
+				l.NsAlarms[ns][oldAlarmVersion].Stop()
+				delete(l.NsAlarms[ns], oldAlarmVersion)
+			}
+		}
+
 	}
-	// check removed ns
 	return nil
 }
 
