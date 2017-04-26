@@ -6,3 +6,4 @@ github.com/lodastack/models dd59da88c3a41688e1dc6229afbcb3d289532bcf
 github.com/mreiferson/go-snappystream 028eae7ab5c4c9e2d1cb4c4ca1e53259bbe7e504
 github.com/pquerna/ffjson 184f78649ba053f484de46921391e6d0c6f5172f
 golang.org/x/net 55a3084c9119aeb9ba2437d595b0a7e9cb635da9
+github.com/lodastack/sdk-go 58b4c40298f6573f0e017bdc230cd629101dd916

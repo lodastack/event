@@ -1,13 +1,18 @@
 package work
 
 import (
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/lodastack/event/common"
+	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 	o "github.com/lodastack/event/output"
 	"github.com/lodastack/log"
+	m "github.com/lodastack/models"
+	"github.com/lodastack/sdk-go"
 )
 
 func sendOne(alarmName, expression string, alertTypes []string, groups []string, eventData models.EventData) error {
@@ -52,7 +57,11 @@ func send(alertTypes []string, groups []string, alertMsg models.AlertMsg) error 
 
 func output(alertType []string, alertMsg models.AlertMsg) error {
 	alertType = common.RemoveDuplicateAndEmpty(alertType)
-
+	go func(name, ns, measurement, host, level string, users []string, value float64) {
+		if err := logAlarm(name, ns, measurement, host, level, users, value); err != nil {
+			log.Errorf("log alarm fail, error: %s, data: %+v", err.Error(), alertMsg)
+		}
+	}(alertMsg.AlarmName, alertMsg.Ns, alertMsg.Measurement, alertMsg.Host, alertMsg.Level, alertMsg.Users, alertMsg.Value)
 	for _, handler := range alertType {
 		handlerFunc, ok := o.Handlers[handler]
 		if !ok {
@@ -64,4 +73,20 @@ func output(alertType []string, alertMsg models.AlertMsg) error {
 		}
 	}
 	return nil
+}
+
+func logAlarm(name, ns, measurement, host, level string, users []string, value float64) error {
+	ms := make([]m.Metric, 1)
+	ms[0] = m.Metric{
+		Name:      "alert",
+		Timestamp: time.Now().Unix(),
+		Tags:      map[string]string{"host": host, "measurement": measurement, "ns": ns, "level": level},
+		Value:     value,
+	}
+
+	data, err := json.Marshal(ms)
+	if err != nil {
+		return err
+	}
+	return sdk.Post(config.GetConfig().Com.EventLogNs, data)
 }
