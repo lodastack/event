@@ -154,7 +154,9 @@ func (w *Work) CheckRegistryAlarmLoop() {
 			alarmPath := ns + "/" + alemVersion
 			rep, err := w.Cluster.RecursiveGet(alarmPath)
 			if err != nil {
-				log.Error("Work CheckRegistryAlarmLoop get host fail:", err.Error())
+				if !strings.Contains(err.Error(), "Key not found") {
+					log.Error("Work CheckRegistryAlarmLoop get host fail:", err.Error())
+				}
 				continue
 			}
 			for _, node := range rep.Node.Nodes {
