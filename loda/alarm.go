@@ -24,16 +24,6 @@ var (
 	nsPeroidDefault   = 5
 )
 
-func ifAlarmChanged(new, old m.Alarm) bool {
-	if new.HostBlockPeriod != old.HostBlockPeriod ||
-		new.HostBlockTimes != old.HostBlockTimes ||
-		new.NsBlockPeriod != old.NsBlockPeriod ||
-		new.NsBlockTimes != old.NsBlockTimes {
-		return true
-	}
-	return false
-}
-
 func newAlarm(alarm m.Alarm) *Alarm {
 	hostPeroid, err := strconv.Atoi(alarm.HostBlockPeriod)
 	if err != nil || hostPeroid == 0 {
@@ -68,7 +58,6 @@ func (a *Alarm) Run(tickerChan chan string) {
 		select {
 		case <-a.BlockTicker.C:
 			tickerChan <- a.AlarmData.Version
-			// fmt.Println("Tick at", t)
 		case stop := <-a.stop:
 			if stop {
 				return

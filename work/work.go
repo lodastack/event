@@ -18,7 +18,9 @@ import (
 var (
 	interval     time.Duration = 20
 	AllEventPath               = "all"
-	timeFormat                 = "2006-01-02 15:04:05"
+	AlarmStatus                = "status"
+
+	timeFormat = "2006-01-02 15:04:05"
 
 	nsPeroidDefault   = 5
 	hostPeroidDefault = 5
@@ -32,6 +34,31 @@ type Work struct {
 
 func NewWork(c cluster.ClusterInf) *Work {
 	return &Work{Cluster: c}
+}
+
+func (w *Work) createDir(dir string) error {
+	err := w.Cluster.CreateDir(dir)
+	if err != nil {
+		log.Errorf("create dir %s fail: %s", dir, err.Error())
+	}
+	return err
+}
+
+func (w *Work) initAlarmDir(ns, alarmVersion string) error {
+	alarmKey := ns + "/" + alarmVersion
+	if err := w.createDir(alarmKey); err != nil {
+		log.Errorf("create alarm %s, %s dir fail", ns, alarmVersion)
+	}
+
+	statusDirKey := alarmKey + "/" + AlarmStatus
+	allDirKey := alarmKey + "/" + AllEventPath
+	if err := w.createDir(statusDirKey); err != nil {
+		log.Errorf("create alarm %s, %s status dir fail", ns, alarmVersion)
+	}
+	if err := w.createDir(allDirKey); err != nil {
+		log.Errorf("create alarm %s, %s all dir fail", ns, alarmVersion)
+	}
+	return nil
 }
 
 func (w *Work) UpdateAlarms() error {
@@ -50,24 +77,16 @@ func (w *Work) UpdateAlarms() error {
 			}
 		}
 
-		// create alarm dir if not exit.
+		// create alarm and alarm/all dir if not exit.
 		for _, alarm := range alarms {
 			alarmKey := ns + "/" + alarm.AlarmData.Version
 			if _, err := w.Cluster.Get(alarmKey, nil); err != nil {
 				log.Infof("get ns(%s) alarm(%s) fail: %s, set it and all dir.", ns, alarm.AlarmData.Version, err.Error())
-				if err := w.Cluster.CreateDir(alarmKey); err != nil {
-					log.Errorf("set ns(%s) alarm(%s) fail: %s, skip this alarm",
-						ns, alarm.AlarmData.Version, err.Error())
-					continue
-				}
-				allDirKey := alarmKey + "/" + AllEventPath
-				if err := w.Cluster.CreateDir(allDirKey); err != nil {
-					log.Errorf("set ns(%s) alarm(%s) dir \"all\" fail: %s, skip this alarm",
-						ns, alarm.AlarmData.Version, err.Error())
+				if err := w.initAlarmDir(ns, alarm.AlarmData.Version); err != nil {
+					log.Errorf("init ns %s alarm %s fail", ns, alarm.AlarmData.Version)
 					continue
 				}
 			}
-			// check alarm watch
 		}
 	}
 	return nil
@@ -145,6 +164,7 @@ func (w *Work) ReadAllNsBlock() {
 }
 
 func (w *Work) CheckRegistryAlarmLoop() {
+	// clean host path every host-block-Peroid.
 	go func() {
 		for {
 			alemVersion := <-loda.Loda.CleanChannel
@@ -171,7 +191,7 @@ func (w *Work) CheckRegistryAlarmLoop() {
 		}
 	}()
 
-	//
+	// wait loda init Loda.NsAlarm finished.
 	for {
 		loda.Loda.RLock()
 		alarmNum := len(loda.Loda.NsAlarms)
@@ -182,6 +202,8 @@ func (w *Work) CheckRegistryAlarmLoop() {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+
+	// loda update NsAlarm loop.
 	go w.ReadAllNsBlock()
 	for {
 		if err := w.UpdateAlarms(); err != nil {
