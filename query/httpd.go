@@ -98,6 +98,7 @@ func addHandlers() {
 	prefix := "/event"
 
 	http.Handle(prefix+"/post", cors(http.HandlerFunc(postDataHandler)))
+	http.Handle(prefix+"/status", cors(http.HandlerFunc(statusHandler)))
 }
 
 func Start(work *work.Work) {
