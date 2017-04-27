@@ -63,3 +63,35 @@ func postDataHandler(resp http.ResponseWriter, req *http.Request) {
 	succResp(resp, "OK", eventData)
 	resp.WriteHeader(200)
 }
+
+// @router /status [get]
+func statusHandler(resp http.ResponseWriter, req *http.Request) {
+	params, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		log.Error("parse url error:", err.Error())
+		errResp(resp, http.StatusInternalServerError, "parse url error")
+		return
+	}
+	// ns := params.Get("ns")
+	// alarmversion := params.Get("alarmversion")
+	// host := params.Get("host")
+	level := params.Get("level")
+
+	allStatus, err := worker.HandleStatus()
+	if err != nil {
+		log.Errorf("Work handle status error: %s.", err.Error())
+		errResp(resp, http.StatusInternalServerError, "handle status error")
+		return
+	}
+
+	switch level {
+	case "ns":
+		succResp(resp, "OK", allStatus.CheckByNs())
+	case "alarm":
+		succResp(resp, "OK", allStatus.CheckByAlarm())
+	default:
+		succResp(resp, "OK", allStatus)
+	}
+
+	resp.WriteHeader(200)
+}

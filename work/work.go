@@ -2,7 +2,6 @@ package work
 
 import (
 	"errors"
-	// "fmt"
 	"strings"
 	"time"
 
@@ -35,7 +34,19 @@ type Work struct {
 }
 
 func NewWork(c cluster.ClusterInf) *Work {
-	return &Work{Cluster: c}
+	w := &Work{Cluster: c}
+	w.makeStatus()
+	go func() {
+		ticker := time.NewTimer(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				w.makeStatus()
+			}
+		}
+	}()
+	return w
 }
 
 func (w *Work) createDir(dir string) error {
@@ -233,13 +244,13 @@ func (w *Work) handleEventToAllPath(ns, version, eventID, message string, blockP
 		log.Errorf("work HandleEvent get all path %s fail: %s", allPath, err.Error())
 		return err, false
 	}
-	// fmt.Printf("####  all: %+v %d\n", rep.Action, len(rep.Node.Nodes))
 	if len(rep.Node.Nodes) >= blockTimes {
 		return nil, true
 	}
 	return nil, false
 }
 
+// handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
 func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, blockByNS bool) error {
 	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
 	if err := w.Cluster.SetWithTTL(
@@ -256,7 +267,6 @@ func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventDat
 		return err
 	}
 
-	// fmt.Printf("####  host: %+v %d\n", rep.Action, len(rep.Node.Nodes))
 	if !blockByNS && len(rep.Node.Nodes) <= alarm.HostBlockTimes {
 		if err := sendOne(
 			alarm.AlarmData.Name,
@@ -303,6 +313,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Errorf("handle event by all path fail: %s", err.Error())
 	}
 
+	// handle event by ns-host
 	if err := w.handleEventToHostPath(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, block); err != nil {
 		log.Errorf("handle event by host path fail: %s", err.Error())
 		return err
