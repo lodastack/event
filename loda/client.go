@@ -41,7 +41,6 @@ func (l *lodaAlarm) UpdateAlarms() error {
 	for ns := range l.NsAlarms {
 		// check removed ns
 		if _, ok := common.ContainString(allNs, ns); !ok {
-			// TODO: stop
 			for version := range l.NsAlarms[ns] {
 				l.NsAlarms[ns][version].Stop()
 			}
