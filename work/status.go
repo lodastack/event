@@ -15,30 +15,60 @@ type (
 var Status NsStatus = make(NsStatus)
 var mu sync.RWMutex
 
-func (s *NsStatus) copy() NsStatus {
-	output := make(map[string]AlarmStatus, len(Status))
+func (s *NsStatus) copy(ns string) NsStatus {
+	var output map[string]AlarmStatus
+
 	mu.RLock()
-	for ns, AlarmStatus := range Status {
+	if ns == "" {
+		output = make(map[string]AlarmStatus, len(Status))
+		for ns, AlarmStatus := range Status {
+			output[ns] = AlarmStatus
+		}
+	} else {
+		output = make(map[string]AlarmStatus, 1)
+		AlarmStatus, _ := Status[ns]
 		output[ns] = AlarmStatus
 	}
 	mu.RUnlock()
+
 	return output
 }
 
-func (s *NsStatus) CheckByAlarm() map[string]map[string]bool {
-	output := make(map[string]map[string]bool, len(Status))
-	for ns, alarmStatus := range Status {
-		output[ns] = make(map[string]bool, len(alarmStatus))
+func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
+	output := make(map[string]map[string]bool)
+	for _ns, alarmStatus := range Status {
+		if ns != "" && _ns != ns {
+			continue
+		}
+		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
 				if status != "OK" {
-					output[ns][alarmVersion] = false
+					output[_ns][alarmVersion] = false
 					goto next
 				}
 			}
-			output[ns][alarmVersion] = true
+			output[_ns][alarmVersion] = true
 		next:
 			continue
+		}
+	}
+	return output
+}
+
+func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
+	output := make(map[string]map[string]bool)
+	for _ns, alarmStatus := range Status {
+		if ns != "" && _ns != ns {
+			continue
+		}
+		output[_ns] = make(map[string]bool, len(alarmStatus))
+		for _, hostStatus := range alarmStatus {
+			for host, status := range hostStatus {
+				if status != "OK" {
+					output[_ns][host] = false
+				}
+			}
 		}
 	}
 	return output
@@ -62,9 +92,8 @@ func (s *NsStatus) CheckByNs() map[string]bool {
 	return output
 }
 
-func (w *Work) HandleStatus() (NsStatus, error) {
-	status := Status.copy()
-	return status, nil
+func (w *Work) HandleStatus(ns string) (NsStatus, error) {
+	return Status.copy(ns), nil
 }
 
 func (w *Work) makeStatus() error {

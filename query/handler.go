@@ -72,12 +72,10 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 		errResp(resp, http.StatusInternalServerError, "parse url error")
 		return
 	}
-	// ns := params.Get("ns")
-	// alarmversion := params.Get("alarmversion")
-	// host := params.Get("host")
+	ns := params.Get("ns")
 	level := params.Get("level")
 
-	allStatus, err := worker.HandleStatus()
+	allStatus, err := worker.HandleStatus(ns)
 	if err != nil {
 		log.Errorf("Work handle status error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle status error")
@@ -88,9 +86,9 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	case "ns":
 		succResp(resp, "OK", allStatus.CheckByNs())
 	case "alarm":
-		succResp(resp, "OK", allStatus.CheckByAlarm())
+		succResp(resp, "OK", allStatus.CheckByAlarm(ns))
 	default:
-		succResp(resp, "OK", allStatus)
+		succResp(resp, "OK", allStatus.CheckByHost(ns))
 	}
 
 	resp.WriteHeader(200)
