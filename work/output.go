@@ -3,6 +3,7 @@ package work
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/lodastack/event/common"
@@ -80,8 +81,13 @@ func logAlarm(name, ns, measurement, host, level string, users []string, value f
 	ms[0] = m.Metric{
 		Name:      "alert",
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{"host": host, "measurement": measurement, "ns": ns, "level": level},
-		Value:     value,
+		Tags: map[string]string{
+			"host":        host,
+			"measurement": measurement,
+			"ns":          ns,
+			"level":       level,
+			"to":          strings.Join(users, "\\,")},
+		Value: value,
 	}
 
 	data, err := json.Marshal(ms)

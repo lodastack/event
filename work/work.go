@@ -37,11 +37,10 @@ func NewWork(c cluster.ClusterInf) *Work {
 	w := &Work{Cluster: c}
 	w.makeStatus()
 	go func() {
-		ticker := time.NewTimer(10 * time.Second)
-		defer ticker.Stop()
+		c := time.Tick(10 * time.Second)
 		for {
 			select {
-			case <-ticker.C:
+			case <-c:
 				w.makeStatus()
 			}
 		}
