@@ -33,7 +33,7 @@ func initLog(conf config.LogConfig) {
 }
 
 func init() {
-	configFile := flag.String("c", "./conf/alarm.conf", "config file path")
+	configFile := flag.String("c", "./conf/event.conf", "config file path")
 	flag.Parse()
 	fmt.Printf("load config from %s\n", *configFile)
 	err := config.LoadConfig(*configFile)
@@ -56,8 +56,8 @@ func main() {
 	w := work.NewWork(c)
 	time.Sleep(500 * time.Millisecond) // TODO
 	go w.CheckRegistryAlarmLoop()
-
+	go loda.UpdateOffMachineLoop()
 	go query.Start(w)
-	// go loda.PurgeAll()
+
 	select {}
 }
