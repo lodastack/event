@@ -82,6 +82,7 @@ func logAlarm(name, ns, measurement, host, level string, users []string, value f
 		Name:      "alert",
 		Timestamp: time.Now().Unix(),
 		Tags: map[string]string{
+			"alertname":   name,
 			"host":        host,
 			"measurement": measurement,
 			"ns":          ns,
