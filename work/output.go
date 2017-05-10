@@ -3,6 +3,7 @@ package work
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,9 +17,22 @@ import (
 	"github.com/lodastack/sdk-go"
 )
 
-func sendOne(alarmName, expression string, alertTypes []string, groups []string, eventData models.EventData) error {
-	// TODO: error
-	send(alertTypes, groups, models.NewAlertMsg(
+var levelMap map[string]string
+
+func init() {
+	levelMap = map[string]string{
+		"OK": "OK",
+		"1":  "一级报警",
+		"2":  "二级报警",
+		"3":  "三级报警",
+	}
+}
+
+func sendOne(alarmName, expression, alertLevel string, alertTypes []string, groups []string, eventData models.EventData) error {
+	if alertLevel == "" {
+		alertLevel = "unknow"
+	}
+	return send(alertTypes, groups, alertLevel, models.NewAlertMsg(
 		eventData.Ns,
 		(*eventData.Data.Series[0]).Tags["host"],
 		(*eventData.Data.Series[0]).Name,
@@ -29,16 +43,14 @@ func sendOne(alarmName, expression string, alertTypes []string, groups []string,
 		(*eventData.Data.Series[0]).Values[0][1].(float64),
 		eventData.Time),
 	)
-	return nil
 }
 
 func sendMulit(ns, alarmName string, alertTypes []string, groups []string, msg string) error {
 	alertMsg := models.AlertMsg{AlarmName: alarmName, Ns: ns, Msg: msg}
-	send(alertTypes, groups, alertMsg)
-	return nil
+	return send(alertTypes, groups, "", alertMsg)
 }
 
-func send(alertTypes []string, groups []string, alertMsg models.AlertMsg) error {
+func send(alertTypes, groups []string, alertLevel string, alertMsg models.AlertMsg) error {
 	recieves := make([]string, 0)
 	for _, gname := range groups {
 		users, err := loda.GetUserByGroup(gname)
@@ -52,17 +64,22 @@ func send(alertTypes []string, groups []string, alertMsg models.AlertMsg) error 
 		return errors.New("empty recieve")
 	}
 	alertMsg.Users = recieves
+
+	if levelMsg, ok := levelMap[alertLevel]; ok {
+		go func(name, ns, measurement, host, level string, users []string, value float64) {
+			if err := logAlarm(name, ns, measurement, host, level, users, value); err != nil {
+				log.Errorf("log alarm fail, error: %s, data: %+v", err.Error(), alertMsg)
+			}
+		}(alertMsg.AlarmName, alertMsg.Ns, alertMsg.Measurement, alertMsg.Host, levelMsg, alertMsg.Users, alertMsg.Value)
+	}
+
 	go output(alertTypes, alertMsg)
 	return nil
 }
 
 func output(alertType []string, alertMsg models.AlertMsg) error {
 	alertType = common.RemoveDuplicateAndEmpty(alertType)
-	go func(name, ns, measurement, host, level string, users []string, value float64) {
-		if err := logAlarm(name, ns, measurement, host, level, users, value); err != nil {
-			log.Errorf("log alarm fail, error: %s, data: %+v", err.Error(), alertMsg)
-		}
-	}(alertMsg.AlarmName, alertMsg.Ns, alertMsg.Measurement, alertMsg.Host, alertMsg.Level, alertMsg.Users, alertMsg.Value)
+
 	for _, handler := range alertType {
 		handlerFunc, ok := o.Handlers[handler]
 		if !ok {
@@ -88,7 +105,7 @@ func logAlarm(name, ns, measurement, host, level string, users []string, value f
 			"ns":          ns,
 			"level":       level,
 			"to":          strings.Join(users, "\\,")},
-		Value: value,
+		Value: fmt.Sprintf("%.2f", value),
 	}
 
 	data, err := json.Marshal(ms)
