@@ -271,6 +271,7 @@ func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventDat
 			alarm.AlarmData.Name,
 			// TODO: relative/deadman
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
+			alarm.AlarmData.Level,
 			strings.Split(alarm.AlarmData.Alert, ","),
 			strings.Split(alarm.AlarmData.Groups, ","),
 			eventData); err != nil {
@@ -307,11 +308,19 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			ns, alarm.AlarmData.Version, err.Error())
 	}
 
-	// ID format: "time:measurement:tags"
-	block := false
-	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
+	if eventData.Level == OK {
+		return sendOne(
+			alarm.AlarmData.Name,
+			alarm.AlarmData.Expression+alarm.AlarmData.Value,
+			OK,
+			strings.Split(alarm.AlarmData.Alert, ","),
+			strings.Split(alarm.AlarmData.Groups, ","),
+			eventData)
+	}
 
+	// ID format: "time:measurement:tags"
 	// handle event by ns-all
+	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
 	err, block := w.handleEventToAllPath(ns, alarm.AlarmData.Version, eventId, eventData.Message, alarm.NsBlockPeriod, alarm.NsBlockTimes)
 	if err != nil {
 		log.Errorf("handle event by all path fail: %s", err.Error())

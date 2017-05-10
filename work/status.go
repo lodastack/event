@@ -12,6 +12,10 @@ type (
 	NsStatus    map[string]AlarmStatus
 )
 
+const (
+	OK = "OK"
+)
+
 var Status NsStatus = make(NsStatus)
 var mu sync.RWMutex
 
@@ -43,7 +47,7 @@ func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
-				if status != "OK" {
+				if status != OK {
 					output[_ns][alarmVersion] = false
 					goto next
 				}
@@ -65,7 +69,7 @@ func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for _, hostStatus := range alarmStatus {
 			for host, status := range hostStatus {
-				if status != "OK" {
+				if status != OK {
 					output[_ns][host] = false
 				}
 			}
@@ -79,7 +83,7 @@ func (s *NsStatus) CheckByNs() map[string]bool {
 	for ns, alarmStatus := range Status {
 		for _, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
-				if status != "OK" {
+				if status != OK {
 					output[ns] = false
 					goto next
 				}
