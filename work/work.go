@@ -68,7 +68,7 @@ func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 		log.Errorf("create alarm %s, %s status dir fail", ns, statusDirKey)
 	}
 	if err := w.createDir(allDirKey); err != nil {
-		log.Errorf("create alarm %s, %s all dir fail", ns, alarmVersion)
+		log.Errorf("create alarm %s, %s all dir fail", ns, allDirKey)
 	}
 	return nil
 }
