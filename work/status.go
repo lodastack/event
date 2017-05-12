@@ -46,7 +46,7 @@ func (s *NsStatus) copy(ns string) NsStatus {
 
 func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 	output := make(map[string]map[string]bool)
-	for _ns, alarmStatus := range Status {
+	for _ns, alarmStatus := range *s {
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
@@ -65,7 +65,7 @@ func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 
 func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
 	output := make(map[string]map[string]bool)
-	for _ns, alarmStatus := range Status {
+	for _ns, alarmStatus := range *s {
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for _, hostStatus := range alarmStatus {
 			for host, status := range hostStatus {
