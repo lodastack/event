@@ -25,25 +25,28 @@ func (s *NsStatus) copy(ns string) NsStatus {
 	mu.RLock()
 	if ns == "" {
 		output = make(map[string]AlarmStatus, len(Status))
-		for ns, AlarmStatus := range Status {
-			output[ns] = AlarmStatus
+		for _ns, AlarmStatus := range Status {
+			output[_ns] = AlarmStatus
 		}
 	} else {
-		output = make(map[string]AlarmStatus, 1)
-		AlarmStatus, _ := Status[ns]
-		output[ns] = AlarmStatus
+		output = map[string]AlarmStatus{}
+		for _ns, alarmStatus := range Status {
+			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns {
+				continue
+			}
+			if len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.' {
+				continue
+			}
+			output[_ns] = alarmStatus
+		}
 	}
 	mu.RUnlock()
-
 	return output
 }
 
 func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 	output := make(map[string]map[string]bool)
 	for _ns, alarmStatus := range Status {
-		if ns != "" && _ns != ns {
-			continue
-		}
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
@@ -63,9 +66,6 @@ func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
 	output := make(map[string]map[string]bool)
 	for _ns, alarmStatus := range Status {
-		if ns != "" && _ns != ns {
-			continue
-		}
 		output[_ns] = make(map[string]bool, len(alarmStatus))
 		for _, hostStatus := range alarmStatus {
 			for host, status := range hostStatus {
