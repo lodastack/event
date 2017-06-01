@@ -20,26 +20,22 @@ const (
 func SendWechat(alertMsg models.AlertMsg) error {
 	var tagDescribe string
 	for k, v := range alertMsg.Tags {
-		tagDescribe += k + "\t:  " + v + "\r\n"
+		tagDescribe += k + ":\t  " + v + "\n"
 	}
 	if len(alertMsg.Tags) > 1 {
 		tagDescribe = tagDescribe[:len(tagDescribe)-2]
 	}
 
-	var msg string
+	var msg, title string
 	if alertMsg.Msg != "" {
 		msg = alertMsg.AlarmName + " " + multi + "\n" +
 			"Ns:  " + alertMsg.Ns + "\nalert too many\n" +
 			alertMsg.Msg
-		msg = strings.Replace(msg, "\n", "\r\n", -1)
-	} else {
-		msg = fmt.Sprintf("%s  %s\r\n%s  %s  %s\r\nns: %s\r\n%s \r\nvalue: %.2f \r\ntime: %v",
-			alertMsg.AlarmName,
-			alertMsg.Level,
-			alertMsg.Host,
-			alertMsg.Measurement,
-			alertMsg.Expression,
 
+	} else {
+		title = fmt.Sprintf("报警:%s  %s", alertMsg.AlarmName, alertMsg.Level)
+		msg = fmt.Sprintf("内容:\nmeasurement:  %s\nns: %s\n%s\nvalue: %.2f \ntime: %v",
+			alertMsg.Measurement,
 			alertMsg.Ns,
 			tagDescribe,
 			alertMsg.Value,
@@ -51,7 +47,7 @@ func SendWechat(alertMsg models.AlertMsg) error {
 		return nil
 	}
 	_, err := requests.PostWithHeader(config.GetConfig().Wechat.Url,
-		map[string]string{"account": strings.Join(alertMsg.Users, "|"), "title": "监控报警", "content": msg}, []byte{},
+		map[string]string{"account": strings.Join(alertMsg.Users, "|"), "title": title, "content": msg}, []byte{},
 		map[string]string{"authToken": config.GetConfig().Wechat.Token}, 10)
 	if err != nil {
 		log.Error("send Wechat fail: %s", err.Error())
