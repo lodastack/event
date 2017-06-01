@@ -87,7 +87,7 @@ func PostWithHeader(URL string, queryMap map[string]string, body []byte, header 
 	}
 
 	if res.StatusCode > 299 {
-		log.Error("return status not 2xx, request: %s, return body: %s", URL+"?"+q, string(resp))
+		log.Errorf("return status not 2xx, request: %s, return body: %s", URL+"?"+q, string(resp))
 		return nil, errors.New("response status not OK")
 	}
 
