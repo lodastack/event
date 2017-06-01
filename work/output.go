@@ -61,7 +61,7 @@ func send(alertTypes, groups []string, alertLevel string, alertMsg models.AlertM
 	}
 	recieves = common.RemoveDuplicateAndEmpty(recieves)
 	if len(recieves) == 0 {
-		return errors.New("empty recieve")
+		return errors.New("empty recieve: " + strings.Join(groups, ","))
 	}
 	alertMsg.Users = recieves
 

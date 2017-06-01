@@ -18,12 +18,13 @@ var (
 )
 
 type Config struct {
-	Com  CommonConfig   `toml:"common"`
-	Reg  RegistryConfig `toml:"registry"`
-	Etcd EtcdConfig     `toml:"etcd"`
-	Mail MailConfig     `toml:"mail"`
-	Sms  SmsConfig      `toml:"sms"`
-	Log  LogConfig      `toml:"log"`
+	Com    CommonConfig   `toml:"common"`
+	Reg    RegistryConfig `toml:"registry"`
+	Etcd   EtcdConfig     `toml:"etcd"`
+	Mail   MailConfig     `toml:"mail"`
+	Sms    SmsConfig      `toml:"sms"`
+	Wechat WechatConfig   `toml""wechat"`
+	Log    LogConfig      `toml:"log"`
 
 	EtcdConfig client.Config `toml:"-"`
 }
@@ -46,6 +47,11 @@ type MailConfig struct {
 }
 
 type SmsConfig struct {
+	Token string `toml:token`
+	Url   string `toml:url`
+}
+
+type WechatConfig struct {
 	Token string `toml:token`
 	Url   string `toml:url`
 }

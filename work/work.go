@@ -297,11 +297,6 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		return errors.New("event has no host")
 	}
 
-	if loda.IsMachineOffline(ns, host) {
-		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
-		return nil
-	}
-
 	// update alarm status
 	if err := w.setAlarmStatus(ns, alarm.AlarmData.Version, host, eventData.Level); err != nil {
 		log.Errorf("set ns %s alarm %s fail: %s",
@@ -316,6 +311,11 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			strings.Split(alarm.AlarmData.Alert, ","),
 			strings.Split(alarm.AlarmData.Groups, ","),
 			eventData)
+	}
+
+	if loda.IsMachineOffline(ns, host) {
+		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
+		return nil
 	}
 
 	// ID format: "time:measurement:tags"
