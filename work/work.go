@@ -144,7 +144,6 @@ func (w *Work) ReadAllNsBlock() {
 				}
 				rep, err := w.Cluster.RecursiveGet(alarmNode.Key + "/" + AllEventPath)
 				if err != nil {
-					log.Error("ReadAllNsBlock read alarm fail:", err.Error())
 					continue
 				}
 				if len(rep.Node.Nodes) != 0 {
