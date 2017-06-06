@@ -23,7 +23,7 @@ func SendWechat(alertMsg models.AlertMsg) error {
 		tagDescribe += k + ":\t  " + v + "\n"
 	}
 	if len(alertMsg.Tags) > 1 {
-		tagDescribe = tagDescribe[:len(tagDescribe)-2]
+		tagDescribe = tagDescribe[:len(tagDescribe)-1]
 	}
 
 	var msg, title string
