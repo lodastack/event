@@ -7,9 +7,13 @@ import (
 )
 
 type (
-	HostStatus  map[string]string
-	AlarmStatus map[string]HostStatus
-	NsStatus    map[string]AlarmStatus
+	NS    string
+	ALARM string
+	HOST  string
+
+	HostStatus  map[HOST]string
+	AlarmStatus map[ALARM]HostStatus
+	NsStatus    map[NS]AlarmStatus
 )
 
 const (
@@ -19,22 +23,20 @@ const (
 var Status NsStatus = make(NsStatus)
 var mu sync.RWMutex
 
-func (s *NsStatus) copy(ns string) NsStatus {
-	var output map[string]AlarmStatus
+func (s *NsStatus) copy(ns NS) NsStatus {
+	var output map[NS]AlarmStatus
 
 	mu.RLock()
 	if ns == "" {
-		output = make(map[string]AlarmStatus, len(Status))
+		output = make(map[NS]AlarmStatus, len(Status))
 		for _ns, AlarmStatus := range Status {
 			output[_ns] = AlarmStatus
 		}
 	} else {
-		output = map[string]AlarmStatus{}
+		output = map[NS]AlarmStatus{}
 		for _ns, alarmStatus := range Status {
-			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns {
-				continue
-			}
-			if len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.' {
+			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns ||
+				(len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.') {
 				continue
 			}
 			output[_ns] = alarmStatus
@@ -44,10 +46,10 @@ func (s *NsStatus) copy(ns string) NsStatus {
 	return output
 }
 
-func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
-	output := make(map[string]map[string]bool)
+func (s *NsStatus) CheckByAlarm(ns string) map[NS]map[ALARM]bool {
+	output := make(map[NS]map[ALARM]bool)
 	for _ns, alarmStatus := range *s {
-		output[_ns] = make(map[string]bool, len(alarmStatus))
+		output[_ns] = make(map[ALARM]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
 				if status != OK {
@@ -63,10 +65,10 @@ func (s *NsStatus) CheckByAlarm(ns string) map[string]map[string]bool {
 	return output
 }
 
-func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
-	output := make(map[string]map[string]bool)
+func (s *NsStatus) CheckByHost(ns string) map[NS]map[HOST]bool {
+	output := make(map[NS]map[HOST]bool)
 	for _ns, alarmStatus := range *s {
-		output[_ns] = make(map[string]bool, len(alarmStatus))
+		output[_ns] = make(map[HOST]bool, len(alarmStatus))
 		for _, hostStatus := range alarmStatus {
 			for host, status := range hostStatus {
 				if status != OK {
@@ -78,8 +80,8 @@ func (s *NsStatus) CheckByHost(ns string) map[string]map[string]bool {
 	return output
 }
 
-func (s *NsStatus) CheckByNs() map[string]bool {
-	output := make(map[string]bool, len(Status))
+func (s *NsStatus) CheckByNs() map[NS]bool {
+	output := make(map[NS]bool, len(Status))
 	for ns, alarmStatus := range Status {
 		for _, hostStatus := range alarmStatus {
 			for _, status := range hostStatus {
@@ -97,7 +99,7 @@ func (s *NsStatus) CheckByNs() map[string]bool {
 }
 
 func (w *Work) HandleStatus(ns string) (NsStatus, error) {
-	return Status.copy(ns), nil
+	return Status.copy(NS(ns)), nil
 }
 
 func (w *Work) makeStatus() error {
@@ -130,14 +132,14 @@ func (w *Work) getNsPathList(status *NsStatus) error {
 	}
 
 	for _, node := range rep.Node.Nodes {
-		(*status)[readEtcdLastSplit(node.Key)] = make(map[string]HostStatus)
+		(*status)[NS(readEtcdLastSplit(node.Key))] = make(map[ALARM]HostStatus)
 	}
 	return nil
 }
 
 func (w *Work) getAlarmList(status *NsStatus) error {
 	for ns := range *status {
-		rep, err := w.Cluster.RecursiveGet(ns)
+		rep, err := w.Cluster.RecursiveGet(string(ns))
 		if err != nil {
 			log.Errorf("work HandleStatus get ns %s fail: %s", ns, err.Error())
 			continue
@@ -145,7 +147,7 @@ func (w *Work) getAlarmList(status *NsStatus) error {
 		}
 		for _, node := range rep.Node.Nodes {
 			alarmVersion := readEtcdLastSplit(node.Key)
-			(*status)[ns][alarmVersion] = HostStatus{}
+			(*status)[ns][ALARM(alarmVersion)] = HostStatus{}
 		}
 	}
 	return nil
@@ -154,7 +156,7 @@ func (w *Work) getAlarmList(status *NsStatus) error {
 func (w *Work) getHostStatus(status *NsStatus) error {
 	for ns := range *status {
 		for alarmVersion := range (*status)[ns] {
-			rep, err := w.Cluster.RecursiveGet(ns + "/" + alarmVersion + "/" + AlarmStatusPath)
+			rep, err := w.Cluster.RecursiveGet(string(ns) + "/" + string(alarmVersion) + "/" + AlarmStatusPath)
 			if err != nil {
 				log.Errorf("work HandleStatus get ns %s alarm %s fail: %s", ns, alarmVersion, err.Error())
 				continue
@@ -162,7 +164,7 @@ func (w *Work) getHostStatus(status *NsStatus) error {
 			}
 			for _, node := range rep.Node.Nodes {
 				host := readEtcdLastSplit(node.Key)
-				(*status)[ns][alarmVersion][host] = node.Value
+				(*status)[ns][alarmVersion][HOST(host)] = node.Value
 			}
 		}
 	}
