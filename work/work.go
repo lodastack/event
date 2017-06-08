@@ -233,7 +233,7 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 		Ns:          ns,
 		Level:       level,
 
-		Value:    (*eventData.Data.Series[0]).Values[0][1].(float64),
+		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
 		Ip:       loda.MachineIp(host),
 		Reciever: receives,
