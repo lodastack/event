@@ -155,11 +155,17 @@ func (w *Work) ReadAllNsBlock() {
 						msg := "Host:  " +
 							strings.Join(common.RemoveDuplicateAndEmpty(hosts), ",\n")
 
+						groups := strings.Split(alarm.AlarmData.Groups, ",")
+						reveives := GetRevieves(groups)
+						if len(reveives) == 0 {
+							log.Errorf("empty recieve: " + strings.Join(groups, ","))
+							continue
+						}
 						if err := sendMulit(
 							ns,
 							alarm.AlarmData.Name,
 							strings.Split(alarm.AlarmData.Alert, ","),
-							strings.Split(alarm.AlarmData.Groups, ","),
+							reveives,
 							msg); err != nil {
 							log.Error("work output error:", err.Error())
 						}
@@ -216,12 +222,36 @@ func (w *Work) CheckRegistryAlarmLoop() {
 	}
 }
 
-func (w *Work) setAlarmStatus(ns, version, host, level string) error {
-	statusPath := ns + "/" + version + "/" + AlarmStatusPath + "/" + host
-	log.Debugf("set status: %s %s %s %s", ns, version, host, level)
+func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, receives []string, eventData models.EventData) error {
+	now := time.Now().Local()
+	newStatus := models.Status{
+		UpdateTime:  now,
+		CreateTime:  now,
+		Name:        alarm.Name,
+		Measurement: alarm.Measurement,
+		Host:        host,
+		Ns:          ns,
+		Level:       level,
+
+		Value:    (*eventData.Data.Series[0]).Values[0][1].(float64),
+		Tags:     (*eventData.Data.Series[0]).Tags,
+		Ip:       loda.MachineIp(host),
+		Reciever: receives,
+	}
+
+	statusPath := ns + "/" + alarm.Version + "/" + AlarmStatusPath + "/" + host
+	if rep, err := w.Cluster.RecursiveGet(statusPath); err == nil {
+		if oldStatus, err := models.NewStatusByString(rep.Node.Value); err == nil {
+			if oldStatus.Level == newStatus.Level {
+				newStatus.CreateTime = oldStatus.CreateTime
+			}
+		}
+	}
+	statusString, _ := newStatus.String()
+
 	return w.Cluster.Set(
 		statusPath,
-		level,
+		statusString,
 		&client.SetOptions{})
 }
 
@@ -249,7 +279,7 @@ func (w *Work) handleEventToAllPath(ns, version, eventID, message string, blockP
 }
 
 // handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
-func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, blockByNS bool) error {
+func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, blockByNS bool, reveives []string) error {
 	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
 	if err := w.Cluster.SetWithTTL(
 		hostPath+"/"+eventID,
@@ -272,7 +302,7 @@ func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventDat
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
 			alarm.AlarmData.Level,
 			strings.Split(alarm.AlarmData.Alert, ","),
-			strings.Split(alarm.AlarmData.Groups, ","),
+			reveives,
 			eventData); err != nil {
 			log.Error("work output error:", err.Error())
 			return err
@@ -296,10 +326,21 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		return errors.New("event has no host")
 	}
 
+	if loda.IsMachineOffline(ns, host) {
+		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
+		return nil
+	}
+
+	groups := strings.Split(alarm.AlarmData.Groups, ",")
+	reveives := GetRevieves(groups)
+	if len(reveives) == 0 {
+		return errors.New("empty recieve: " + strings.Join(groups, ","))
+	}
+
 	// update alarm status
-	if err := w.setAlarmStatus(ns, alarm.AlarmData.Version, host, eventData.Level); err != nil {
-		log.Errorf("set ns %s alarm %s fail: %s",
-			ns, alarm.AlarmData.Version, err.Error())
+	if err := w.setAlarmStatus(ns, alarm.AlarmData, host, eventData.Level, reveives, eventData); err != nil {
+		log.Errorf("set ns %s alarm %s host %s fail: %s",
+			ns, alarm.AlarmData.Version, host, err.Error())
 	}
 
 	if eventData.Level == OK {
@@ -312,11 +353,6 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			eventData)
 	}
 
-	if loda.IsMachineOffline(ns, host) {
-		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
-		return nil
-	}
-
 	// ID format: "time:measurement:tags"
 	// handle event by ns-all
 	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
@@ -326,7 +362,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	}
 
 	// handle event by ns-host
-	if err := w.handleEventToHostPath(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, block); err != nil {
+	if err := w.handleEventToHostPath(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, block, reveives); err != nil {
 		log.Errorf("handle event by host path fail: %s", err.Error())
 		return err
 	}
