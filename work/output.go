@@ -2,7 +2,6 @@ package work
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -28,11 +27,24 @@ func init() {
 	}
 }
 
-func sendOne(alarmName, expression, alertLevel string, alertTypes []string, groups []string, eventData models.EventData) error {
-	if alertLevel == "" {
-		alertLevel = "unknow"
+func GetRevieves(groups []string) []string {
+	recieves := make([]string, 0)
+	for _, gname := range groups {
+		users, err := loda.GetUserByGroup(gname)
+		if err != nil {
+			continue
+		}
+		recieves = append(recieves, users...)
 	}
-	return send(alertTypes, groups, alertLevel, models.NewAlertMsg(
+	recieves = common.RemoveDuplicateAndEmpty(recieves)
+	if len(recieves) == 0 {
+		return nil
+	}
+	return recieves
+}
+
+func sendOne(alarmName, expression, alertLevel string, alertTypes []string, recieves []string, eventData models.EventData) error {
+	return send(alertTypes, recieves, alertLevel, models.NewAlertMsg(
 		eventData.Ns,
 		(*eventData.Data.Series[0]).Tags["host"],
 		(*eventData.Data.Series[0]).Name,
@@ -45,24 +57,12 @@ func sendOne(alarmName, expression, alertLevel string, alertTypes []string, grou
 	)
 }
 
-func sendMulit(ns, alarmName string, alertTypes []string, groups []string, msg string) error {
+func sendMulit(ns, alarmName string, alertTypes []string, recieves []string, msg string) error {
 	alertMsg := models.AlertMsg{AlarmName: alarmName, Ns: ns, Msg: msg}
-	return send(alertTypes, groups, "", alertMsg)
+	return send(alertTypes, recieves, "", alertMsg)
 }
 
-func send(alertTypes, groups []string, alertLevel string, alertMsg models.AlertMsg) error {
-	recieves := make([]string, 0)
-	for _, gname := range groups {
-		users, err := loda.GetUserByGroup(gname)
-		if err != nil {
-			continue
-		}
-		recieves = append(recieves, users...)
-	}
-	recieves = common.RemoveDuplicateAndEmpty(recieves)
-	if len(recieves) == 0 {
-		return errors.New("empty recieve: " + strings.Join(groups, ","))
-	}
+func send(alertTypes, recieves []string, alertLevel string, alertMsg models.AlertMsg) error {
 	alertMsg.Users = recieves
 
 	if levelMsg, ok := levelMap[alertLevel]; ok {

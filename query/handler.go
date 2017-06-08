@@ -87,8 +87,10 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 		succResp(resp, "OK", allStatus.CheckByNs())
 	case "alarm":
 		succResp(resp, "OK", allStatus.CheckByAlarm(ns))
-	default:
+	case "host":
 		succResp(resp, "OK", allStatus.CheckByHost(ns))
+	default:
+		succResp(resp, "OK", allStatus)
 	}
 
 	resp.WriteHeader(200)

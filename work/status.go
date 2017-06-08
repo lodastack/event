@@ -3,6 +3,7 @@ package work
 import (
 	"sync"
 
+	"github.com/lodastack/event/models"
 	"github.com/lodastack/log"
 )
 
@@ -11,7 +12,7 @@ type (
 	ALARM string
 	HOST  string
 
-	HostStatus  map[HOST]string
+	HostStatus  map[HOST]models.Status
 	AlarmStatus map[ALARM]HostStatus
 	NsStatus    map[NS]AlarmStatus
 )
@@ -20,7 +21,7 @@ const (
 	OK = "OK"
 )
 
-var Status NsStatus = make(NsStatus)
+var StatusData NsStatus = make(NsStatus)
 var mu sync.RWMutex
 
 func (s *NsStatus) copy(ns NS) NsStatus {
@@ -28,13 +29,13 @@ func (s *NsStatus) copy(ns NS) NsStatus {
 
 	mu.RLock()
 	if ns == "" {
-		output = make(map[NS]AlarmStatus, len(Status))
-		for _ns, AlarmStatus := range Status {
+		output = make(map[NS]AlarmStatus, len(StatusData))
+		for _ns, AlarmStatus := range StatusData {
 			output[_ns] = AlarmStatus
 		}
 	} else {
 		output = map[NS]AlarmStatus{}
-		for _ns, alarmStatus := range Status {
+		for _ns, alarmStatus := range StatusData {
 			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns ||
 				(len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.') {
 				continue
@@ -51,8 +52,8 @@ func (s *NsStatus) CheckByAlarm(ns string) map[NS]map[ALARM]bool {
 	for _ns, alarmStatus := range *s {
 		output[_ns] = make(map[ALARM]bool, len(alarmStatus))
 		for alarmVersion, hostStatus := range alarmStatus {
-			for _, status := range hostStatus {
-				if status != OK {
+			for _, hostStatus := range hostStatus {
+				if hostStatus.Level != OK {
 					output[_ns][alarmVersion] = false
 					goto next
 				}
@@ -69,9 +70,9 @@ func (s *NsStatus) CheckByHost(ns string) map[NS]map[HOST]bool {
 	output := make(map[NS]map[HOST]bool)
 	for _ns, alarmStatus := range *s {
 		output[_ns] = make(map[HOST]bool, len(alarmStatus))
-		for _, hostStatus := range alarmStatus {
-			for host, status := range hostStatus {
-				if status != OK {
+		for _, hostsStatus := range alarmStatus {
+			for host, hostStatus := range hostsStatus {
+				if hostStatus.Level != OK {
 					output[_ns][host] = false
 				}
 			}
@@ -81,11 +82,11 @@ func (s *NsStatus) CheckByHost(ns string) map[NS]map[HOST]bool {
 }
 
 func (s *NsStatus) CheckByNs() map[NS]bool {
-	output := make(map[NS]bool, len(Status))
-	for ns, alarmStatus := range Status {
-		for _, hostStatus := range alarmStatus {
-			for _, status := range hostStatus {
-				if status != OK {
+	output := make(map[NS]bool, len(StatusData))
+	for ns, alarmStatus := range StatusData {
+		for _, hostsStatus := range alarmStatus {
+			for _, hostStatus := range hostsStatus {
+				if hostStatus.Level != OK {
 					output[ns] = false
 					goto next
 				}
@@ -99,27 +100,27 @@ func (s *NsStatus) CheckByNs() map[NS]bool {
 }
 
 func (w *Work) HandleStatus(ns string) (NsStatus, error) {
-	return Status.copy(NS(ns)), nil
+	return StatusData.copy(NS(ns)), nil
 }
 
 func (w *Work) makeStatus() error {
-	status := make(NsStatus)
-	if err := w.getNsPathList(&status); err != nil {
+	data := make(NsStatus)
+	if err := w.getNsPathList(&data); err != nil {
 		log.Error("HandleStatus get ns fail: %s", err.Error())
 		return err
 	}
 
-	if err := w.getAlarmList(&status); err != nil {
+	if err := w.getAlarmList(&data); err != nil {
 		log.Error("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
 
-	if err := w.getHostStatus(&status); err != nil {
+	if err := w.getHostStatus(&data); err != nil {
 		log.Error("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
 	mu.Lock()
-	Status = status
+	StatusData = data
 	mu.Unlock()
 	return nil
 }
@@ -164,7 +165,13 @@ func (w *Work) getHostStatus(status *NsStatus) error {
 			}
 			for _, node := range rep.Node.Nodes {
 				host := readEtcdLastSplit(node.Key)
-				(*status)[ns][alarmVersion][HOST(host)] = node.Value
+				if node.Value != "" {
+					hostStatus, err := models.NewStatusByString(node.Value)
+					if err != nil {
+						log.Errorf("unmarshal ns %s alarm %s status fail: %s", ns, alarmVersion, err.Error())
+					}
+					(*status)[ns][alarmVersion][HOST(host)] = hostStatus
+				}
 			}
 		}
 	}

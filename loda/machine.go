@@ -14,14 +14,19 @@ import (
 
 type MachineStatus map[string]bool
 
-type MachineResp struct {
+type MachineSearch struct {
 	Status int                            `json:"httpstatus"`
 	Data   map[string][]map[string]string `json:"data"`
 }
+type MachineGet struct {
+	Status int                 `json:"httpstatus"`
+	Data   []map[string]string `json:"data"`
+}
 
 var offlineMachines map[string]MachineStatus
+var machinesIp map[string]string
 var mu sync.RWMutex
-var offlineMachineInterfal time.Duration = 30
+var offlineMachineInterfal time.Duration = 60
 
 func UpdateOffMachineLoop() {
 	var err error
@@ -36,6 +41,15 @@ func UpdateOffMachineLoop() {
 		for {
 			select {
 			case <-c:
+				ips, err := MachinesIp()
+				if err != nil {
+					log.Errorf("get offline machine err: %s", err.Error())
+				} else {
+					mu.Lock()
+					machinesIp = ips
+					mu.Unlock()
+				}
+
 				machineStatus, err := OfflineMachines()
 				if err != nil {
 					log.Errorf("get offline machine err: %s", err.Error())
@@ -61,8 +75,15 @@ func IsMachineOffline(ns, hostname string) bool {
 	return true
 }
 
+func MachineIp(hostname string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+	ip, _ := machinesIp[hostname]
+	return ip
+}
+
 func OfflineMachines() (map[string]MachineStatus, error) {
-	var searchResp MachineResp
+	var searchResp MachineSearch
 	var res map[string]MachineStatus
 	url := fmt.Sprintf("%s/api/v1/event/resource/search?ns=%s&type=%s&k=%s&v=%s",
 		config.GetConfig().Reg.Link, "loda", "machine", "status", "offline")
@@ -93,4 +114,36 @@ func OfflineMachines() (map[string]MachineStatus, error) {
 	}
 
 	return res, nil
+}
+
+func MachinesIp() (map[string]string, error) {
+	var machineData MachineGet
+	var machineIps map[string]string
+	url := fmt.Sprintf("http://registry.monitor.ifengidc.com/api/v1/event/resource?ns=loda&type=machine")
+
+	resp, err := requests.Get(url)
+	if err != nil {
+		log.Errorf("get all ns error: %s", err.Error())
+		return machineIps, err
+	}
+
+	if resp.Status != 200 {
+		return machineIps, fmt.Errorf("http status code: %d", resp.Status)
+	}
+
+	err = json.Unmarshal(resp.Body, &machineData)
+	if err != nil {
+		log.Errorf("get all ns error: %s", err.Error())
+		return machineIps, err
+	}
+	machineIps = make(map[string]string, len(machineData.Data))
+	for _, machine := range machineData.Data {
+		ip, _ := machine["ip"]
+		hostname, _ := machine["hostname"]
+		if ip != "" && hostname != "" {
+			machineIps[hostname] = ip
+		}
+	}
+
+	return machineIps, nil
 }
