@@ -27,6 +27,7 @@ var (
 	hostPeroidDefault = 5
 
 	defaultNsBlock = 1
+	alarmLevelMap  = map[string]string{"1": "一级报警", "2": "二级报警"}
 )
 
 type Work struct {
@@ -224,9 +225,11 @@ func (w *Work) CheckRegistryAlarmLoop() {
 
 func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, receives []string, eventData models.EventData) error {
 	now := time.Now().Local()
+	alarmLevel, _ := alarmLevelMap[alarm.Level]
 	newStatus := models.Status{
 		UpdateTime:  now,
 		CreateTime:  now,
+		Alarm:       alarmLevel,
 		Name:        alarm.Name,
 		Measurement: alarm.Measurement,
 		Host:        host,
@@ -247,6 +250,7 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 			}
 		}
 	}
+	newStatus.LastTime = newStatus.UpdateTime.Sub(newStatus.CreateTime).Minutes()
 	statusString, _ := newStatus.String()
 
 	return w.Cluster.Set(

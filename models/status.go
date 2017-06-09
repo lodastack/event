@@ -11,6 +11,7 @@ var timeFormat string = "2006-01-02 15:04:05"
 type Status struct {
 	Name        string
 	Measurement string
+	Alarm       string
 	Host        string
 	Ip          string
 	Ns          string
@@ -21,6 +22,7 @@ type Status struct {
 
 	CTime      string
 	UTime      string
+	LastTime   float64   // unit: min
 	CreateTime time.Time `json:"-"`
 	UpdateTime time.Time `json:"-"`
 
