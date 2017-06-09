@@ -22,7 +22,7 @@ type Status struct {
 
 	CTime      string
 	UTime      string
-	LastTime   float64   // unit: min
+	LastTime   string
 	CreateTime time.Time `json:"-"`
 	UpdateTime time.Time `json:"-"`
 
@@ -32,14 +32,14 @@ type Status struct {
 func NewStatusByString(input string) (Status, error) {
 	var status Status
 	err := jsoniter.Unmarshal([]byte(input), &status)
-	status.CreateTime, _ = time.Parse(timeFormat, status.CTime)
-	status.UpdateTime, _ = time.Parse(timeFormat, status.UTime)
+	loc := time.Now().Location()
+	status.CreateTime, _ = time.ParseInLocation(timeFormat, status.CTime, loc)
+	status.UpdateTime, _ = time.ParseInLocation(timeFormat, status.UTime, loc)
 	return status, err
 }
 
 func (s *Status) String() (string, error) {
-	s.CTime = s.CreateTime.Format(timeFormat)
-	s.UTime = s.UpdateTime.Format(timeFormat)
+	s.CTime, s.UTime = s.CreateTime.Format(timeFormat), s.UpdateTime.Format(timeFormat)
 	b, err := jsoniter.Marshal(s)
 	return string(b), err
 }
