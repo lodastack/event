@@ -74,6 +74,7 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 	ns := params.Get("ns")
 	level := params.Get("level")
+	status := params.Get("status")
 
 	allStatus, err := worker.HandleStatus(ns)
 	if err != nil {
@@ -90,7 +91,7 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	case "host":
 		succResp(resp, "OK", allStatus.CheckByHost(ns))
 	default:
-		succResp(resp, "OK", allStatus)
+		succResp(resp, "OK", allStatus.Detail(status))
 	}
 
 	resp.WriteHeader(200)

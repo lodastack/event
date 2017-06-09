@@ -2,6 +2,7 @@ package work
 
 import (
 	"sync"
+	"time"
 
 	"github.com/lodastack/event/models"
 	"github.com/lodastack/log"
@@ -44,6 +45,24 @@ func (s *NsStatus) copy(ns NS) NsStatus {
 		}
 	}
 	mu.RUnlock()
+	return output
+}
+
+func (s *NsStatus) Detail(level string) []models.Status {
+	output := make([]models.Status, 0)
+	for _, alarmStatus := range *s {
+		for _, hostStatus := range alarmStatus {
+			for _, hostStatus := range hostStatus {
+				if hostStatus.Level == "" {
+					continue
+				}
+				hostStatus.LastTime = (((time.Since(hostStatus.CreateTime)) / time.Second) * time.Second).String()
+				if level == "" || hostStatus.Level == level {
+					output = append(output, hostStatus)
+				}
+			}
+		}
+	}
 	return output
 }
 

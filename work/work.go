@@ -250,7 +250,6 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 			}
 		}
 	}
-	newStatus.LastTime = newStatus.UpdateTime.Sub(newStatus.CreateTime).String()
 	statusString, _ := newStatus.String()
 
 	return w.Cluster.Set(
