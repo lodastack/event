@@ -56,7 +56,7 @@ func (s *NsStatus) Detail(level string) []models.Status {
 				if hostStatus.Level == "" {
 					continue
 				}
-				hostStatus.LastTime = (((time.Since(hostStatus.CreateTime)) / time.Second) * time.Second).String()
+				hostStatus.LastTime = ((time.Since(hostStatus.CreateTime)) / time.Second)
 				if level == "" || hostStatus.Level == level {
 					output = append(output, hostStatus)
 				}
