@@ -22,9 +22,9 @@ type Status struct {
 
 	CTime      string
 	UTime      string
-	LastTime   string
-	CreateTime time.Time `json:"-"`
-	UpdateTime time.Time `json:"-"`
+	LastTime   time.Duration // unit: second
+	CreateTime time.Time     `json:"-"`
+	UpdateTime time.Time     `json:"-"`
 
 	Msg string
 }
