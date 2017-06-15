@@ -247,7 +247,15 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 		if oldStatus, err := models.NewStatusByString(rep.Node.Value); err == nil {
 			if oldStatus.Level == newStatus.Level {
 				newStatus.CreateTime = oldStatus.CreateTime
+			} else {
+				if err := logOneStatus(newStatus); err != nil {
+					log.Errorf("log status fail: %s", err.Error())
+				}
 			}
+		}
+	} else {
+		if err := logNewStatus(newStatus); err != nil {
+			log.Errorf("log status fail: %s", err.Error())
 		}
 	}
 	statusString, _ := newStatus.String()

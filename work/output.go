@@ -1,19 +1,11 @@
 package work
 
 import (
-	"encoding/json"
-	"fmt"
-	"strings"
-	"time"
-
 	"github.com/lodastack/event/common"
-	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 	o "github.com/lodastack/event/output"
 	"github.com/lodastack/log"
-	m "github.com/lodastack/models"
-	"github.com/lodastack/sdk-go"
 )
 
 var levelMap map[string]string
@@ -91,26 +83,4 @@ func output(alertType []string, alertMsg models.AlertMsg) error {
 		}
 	}
 	return nil
-}
-
-func logAlarm(name, ns, measurement, host, level string, users []string, value float64) error {
-	ms := make([]m.Metric, 1)
-	ms[0] = m.Metric{
-		Name:      "alert",
-		Timestamp: time.Now().Unix(),
-		Tags: map[string]string{
-			"alertname":   name,
-			"host":        host,
-			"measurement": measurement,
-			"ns":          ns,
-			"level":       level,
-			"to":          strings.Join(users, "\\,")},
-		Value: fmt.Sprintf("%.2f", value),
-	}
-
-	data, err := json.Marshal(ms)
-	if err != nil {
-		return err
-	}
-	return sdk.Post(config.GetConfig().Com.EventLogNs, data)
 }
