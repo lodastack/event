@@ -352,7 +352,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
 			OK,
 			strings.Split(alarm.AlarmData.Alert, ","),
-			strings.Split(alarm.AlarmData.Groups, ","),
+			reveives,
 			eventData)
 	}
 
