@@ -18,14 +18,11 @@ var (
 type lodaAlarm struct {
 	sync.RWMutex
 	NsAlarms map[string]map[string]*Alarm
-
-	CleanChannel chan string
 }
 
 func init() {
 	Loda = lodaAlarm{
-		NsAlarms:     make(map[string]map[string]*Alarm),
-		CleanChannel: make(chan string, 0),
+		NsAlarms: make(map[string]map[string]*Alarm),
 	}
 }
 
@@ -41,9 +38,6 @@ func (l *lodaAlarm) UpdateAlarms() error {
 	for ns := range l.NsAlarms {
 		// check removed ns
 		if _, ok := common.ContainString(allNs, ns); !ok {
-			for version := range l.NsAlarms[ns] {
-				l.NsAlarms[ns][version].Stop()
-			}
 			delete(l.NsAlarms, ns)
 		}
 	}
@@ -65,14 +59,12 @@ func (l *lodaAlarm) UpdateAlarms() error {
 			_, ok := l.NsAlarms[ns][version]
 			if !ok {
 				l.NsAlarms[ns][alarm.Version] = newAlarm(alarm)
-				go l.NsAlarms[ns][alarm.Version].Run(l.CleanChannel)
 			}
 		}
 
 		// check removed alarm
 		for oldAlarmVersion := range l.NsAlarms[ns] {
 			if _, ok := alarmMap[oldAlarmVersion]; !ok {
-				l.NsAlarms[ns][oldAlarmVersion].Stop()
 				delete(l.NsAlarms[ns], oldAlarmVersion)
 			}
 		}
