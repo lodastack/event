@@ -2,6 +2,7 @@ package work
 
 import (
 	"errors"
+	// "strconv"
 	"strings"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 
 var (
 	interval        time.Duration = 20
-	AllEventPath                  = "all"
 	AlarmStatusPath               = "status"
 	AlarmHostPath                 = "host"
 
@@ -30,8 +30,20 @@ var (
 	alarmLevelMap  = map[string]string{"1": "一级报警", "2": "二级报警"}
 )
 
+type ClusterInf interface {
+	Get(k string, option *client.GetOptions) (*client.Response, error)
+	Set(k, v string, option *client.SetOptions) error
+	SetWithTTL(k, v string, duration time.Duration) error
+	Delete(key string) error
+	DeleteDir(k string) error
+	Lock(path string, lockTime time.Duration) error
+	Unlock(path string) error
+	RecursiveGet(k string) (*client.Response, error)
+	CreateDir(k string) error
+}
+
 type Work struct {
-	Cluster cluster.ClusterInf
+	Cluster ClusterInf
 }
 
 func NewWork(c cluster.ClusterInf) *Work {
@@ -64,12 +76,8 @@ func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 	}
 
 	statusDirKey := alarmKey + "/" + AlarmStatusPath
-	allDirKey := alarmKey + "/" + AllEventPath
 	if err := w.createDir(statusDirKey); err != nil {
 		log.Errorf("create alarm %s, %s status dir fail", ns, statusDirKey)
-	}
-	if err := w.createDir(allDirKey); err != nil {
-		log.Errorf("create alarm %s, %s all dir fail", ns, allDirKey)
 	}
 	return nil
 }
@@ -115,88 +123,8 @@ func readHostFromEtcdKey(etcdKey string) string {
 	return etcdKeySplit[len(etcdKeySplit)-1]
 }
 
-func (w *Work) ReadAllNsBlock() {
-	for {
-		rep, err := w.Cluster.RecursiveGet("")
-		if err != nil {
-			log.Error("ReadAllNsBlock read root fail:", err.Error())
-			continue
-		}
-		// loop etcd ns path
-		for _, nsNode := range rep.Node.Nodes {
-			ns := readEtcdLastSplit(nsNode.Key)
-			rep, err := w.Cluster.RecursiveGet(nsNode.Key)
-			if err != nil {
-				log.Errorf("ReadAllNsBlock read %s fail: %s", nsNode.Key, err.Error())
-				continue
-			}
-			// loop alarm of the ns
-			for _, alarmNode := range rep.Node.Nodes {
-				alarmVersion := readEtcdLastSplit(alarmNode.Key)
-				loda.Loda.RLock()
-				alarm, ok := loda.Loda.NsAlarms[ns][alarmVersion]
-				loda.Loda.RUnlock()
-				if !ok {
-					log.Errorf("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
-					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
-						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
-					}
-					continue
-				}
-				rep, err := w.Cluster.RecursiveGet(alarmNode.Key + "/" + AllEventPath)
-				if err != nil {
-					continue
-				}
-				if len(rep.Node.Nodes) != 0 {
-					if len(rep.Node.Nodes) >= alarm.NsBlockTimes {
-						hosts := make([]string, len(rep.Node.Nodes))
-						for index, n := range rep.Node.Nodes {
-							hosts[index] = readHostFromEtcdKey(n.Key)
-						}
-						msg := "Host:  " +
-							strings.Join(common.RemoveDuplicateAndEmpty(hosts), ",\n")
-
-						groups := strings.Split(alarm.AlarmData.Groups, ",")
-						reveives := GetRevieves(groups)
-						if len(reveives) == 0 {
-							log.Errorf("empty recieve: " + strings.Join(groups, ","))
-							continue
-						}
-						if err := sendMulit(
-							ns,
-							alarm.AlarmData.Name,
-							strings.Split(alarm.AlarmData.Alert, ","),
-							reveives,
-							msg); err != nil {
-							log.Error("work output error:", err.Error())
-						}
-						if err := w.Cluster.DeleteDir(alarmNode.Key + "/" + AllEventPath); err != nil {
-							log.Errorf("delete all block %s fail: %s", alarmNode.Key+"/"+AllEventPath, err.Error())
-						}
-					}
-				}
-			}
-		}
-		time.Sleep(time.Duration(defaultNsBlock) * time.Minute) // TODO
-	}
-}
-
 func (w *Work) CheckRegistryAlarmLoop() {
 	// clean host path every host-block-Peroid, otherwise new alert will block by old alert.
-	go func() {
-		for {
-			alemVersion := <-loda.Loda.CleanChannel
-			verSplit := m.SplitVersion(alemVersion)
-			ns := verSplit[0] // TODO: check
-
-			alarmHostPath := etcdPrefix + "/" + ns + "/" + alemVersion + "/" + AlarmHostPath
-			if err := w.Cluster.DeleteDir(alarmHostPath); err != nil {
-				if !strings.Contains(err.Error(), "Key not found") {
-					log.Errorf("Work CheckRegistryAlarmLoop delete host %s fail: %s", alarmHostPath, err.Error())
-				}
-			}
-		}
-	}()
 
 	// wait loda init Loda.NsAlarm finished.
 	for {
@@ -211,7 +139,6 @@ func (w *Work) CheckRegistryAlarmLoop() {
 	}
 
 	// loda update NsAlarm loop.
-	go w.ReadAllNsBlock()
 	for {
 		if err := w.UpdateAlarms(); err != nil {
 			log.Errorf("work loop error: %s", err)
@@ -266,58 +193,17 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 		&client.SetOptions{})
 }
 
-// handEventToAllPath handle event to alarm-ns path, and check if the alert block by alert ns level.
-func (w *Work) handleEventToAllPath(ns, version, eventID, message string, blockPeriod, blockTimes int) (error, bool) {
-	allPath := ns + "/" + version + "/" + AllEventPath
-	if err := w.Cluster.SetWithTTL(
-		allPath+"/"+eventID,
-		message,
-		time.Duration(blockPeriod)*time.Minute); err != nil {
-		log.Errorf("set ns %s alarm %s to all path fail: %s",
-			ns, version, err.Error())
-	}
-
-	// check if the alert block by ns level.
-	rep, err := w.Cluster.RecursiveGet(allPath)
-	if err != nil {
-		log.Errorf("work HandleEvent get all path %s fail: %s", allPath, err.Error())
-		return err, false
-	}
-	if len(rep.Node.Nodes) >= blockTimes {
-		return nil, true
-	}
-	return nil, false
-}
-
 // handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
-func (w *Work) handleEventToHostPath(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, blockByNS bool, reveives []string) error {
-	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
-	if err := w.Cluster.SetWithTTL(
-		hostPath+"/"+eventID,
-		eventData.Message,
-		time.Duration(alarm.HostBlockPeriod)*time.Minute); err != nil {
-		log.Errorf("set ns %s alarm %s to host path fail: %s",
-			ns, version, err.Error())
-	}
-
-	rep, err := w.Cluster.RecursiveGet(hostPath)
-	if err != nil {
-		log.Errorf("work HandleEvent to host path get %s fail: %s", hostPath, err.Error())
+func (w *Work) handleEvent(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, reveives []string) error {
+	if err := sendOne(
+		alarm.AlarmData.Name,
+		alarm.AlarmData.Expression+alarm.AlarmData.Value,
+		alarm.AlarmData.Level,
+		strings.Split(alarm.AlarmData.Alert, ","),
+		reveives,
+		eventData); err != nil {
+		log.Error("work output error:", err.Error())
 		return err
-	}
-
-	if !blockByNS && len(rep.Node.Nodes) <= alarm.HostBlockTimes {
-		if err := sendOne(
-			alarm.AlarmData.Name,
-			// TODO: relative/deadman
-			alarm.AlarmData.Expression+alarm.AlarmData.Value,
-			alarm.AlarmData.Level,
-			strings.Split(alarm.AlarmData.Alert, ","),
-			reveives,
-			eventData); err != nil {
-			log.Error("work output error:", err.Error())
-			return err
-		}
 	}
 	return nil
 }
@@ -354,7 +240,9 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			ns, alarm.AlarmData.Version, host, err.Error())
 	}
 
+	// read and check block/times
 	if eventData.Level == OK {
+		w.clearBlock(ns, alarm.AlarmData.Version, host)
 		return sendOne(
 			alarm.AlarmData.Name,
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
@@ -364,16 +252,14 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			eventData)
 	}
 
+	if isBlock := w.readBlockStatus(ns, alarm, host); isBlock {
+		return nil
+	}
+
 	// ID format: "time:measurement:tags"
 	// handle event by ns-all
 	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
-	err, block := w.handleEventToAllPath(ns, alarm.AlarmData.Version, eventId, eventData.Message, alarm.NsBlockPeriod, alarm.NsBlockTimes)
-	if err != nil {
-		log.Errorf("handle event by all path fail: %s", err.Error())
-	}
-
-	// handle event by ns-host
-	if err := w.handleEventToHostPath(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, block, reveives); err != nil {
+	if err := w.handleEvent(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, reveives); err != nil {
 		log.Errorf("handle event by host path fail: %s", err.Error())
 		return err
 	}
