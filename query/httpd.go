@@ -99,6 +99,7 @@ func addHandlers() {
 
 	http.Handle(prefix+"/post", cors(http.HandlerFunc(postDataHandler)))
 	http.Handle(prefix+"/status", cors(http.HandlerFunc(statusHandler)))
+	http.Handle(prefix+"/clear/status", cors(http.HandlerFunc(clearStatusHandler)))
 }
 
 func Start(work *work.Work) {

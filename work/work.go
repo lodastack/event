@@ -93,8 +93,6 @@ func readHostFromEtcdKey(etcdKey string) string {
 }
 
 func (w *Work) CheckAlarmLoop() {
-	// clean host path every host-block-Peroid, otherwise new alert will block by old alert.
-
 	// wait loda init Loda.NsAlarm finished.
 	for {
 		loda.Loda.RLock()

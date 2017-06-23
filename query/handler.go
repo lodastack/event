@@ -96,3 +96,25 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 
 	resp.WriteHeader(200)
 }
+
+func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
+	params, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		log.Error("parse url error:", err.Error())
+		errResp(resp, http.StatusInternalServerError, "parse url error")
+		return
+	}
+	ns := params.Get("ns")
+	alarm := params.Get("alarm")
+	host := params.Get("host")
+	if ns == "" || (alarm == "" && host == "") {
+		errResp(resp, http.StatusBadRequest, "invalid param")
+		return
+	}
+	if err := worker.ClearStatus(ns, alarm, host); err != nil {
+		log.Errorf("Work ClearBlock %s %s %s error: %s.", ns, alarm, host, err.Error())
+		errResp(resp, http.StatusInternalServerError, "handle clear status")
+		return
+	}
+	resp.WriteHeader(200)
+}
