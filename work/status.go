@@ -1,6 +1,7 @@
 package work
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -194,5 +195,38 @@ func (w *Work) getHostStatus(status *NsStatus) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (w *Work) ClearStatus(ns, alarmVersion, host string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	alarmsStatus, ok := StatusData[NS(ns)]
+	if !ok {
+		return nil
+	}
+	for _alarmVersion, _hostStatus := range alarmsStatus {
+		if alarmVersion != "" && ALARM(alarmVersion) != _alarmVersion {
+			continue
+		}
+		for _host := range _hostStatus {
+			if host != "" && HOST(host) != _host {
+				continue
+			}
+			delete(StatusData[NS(ns)][ALARM(alarmVersion)], HOST(host))
+
+			statusStatusPath := etcdPrefix + "/" + ns + "/" + string(_alarmVersion) + "/" + AlarmStatusPath + "/" + string(_host)
+			hostStatusPath := etcdPrefix + "/" + ns + "/" + string(_alarmVersion) + "/" + AlarmHostPath + "/" + string(_host)
+			if err := w.Cluster.DeleteDir(statusStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
+				log.Errorf("del status dir %s fail: %s", statusStatusPath, err.Error())
+			}
+			if err := w.Cluster.DeleteDir(hostStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
+				if !strings.Contains(err.Error(), "Key not found") {
+					log.Errorf("del host dir %s fail: %s", hostStatusPath, err.Error())
+				}
+			}
+		}
+	}
+
 	return nil
 }
