@@ -82,6 +82,44 @@ func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 	return nil
 }
 
+func readEtcdLastSplit(etcdKey string) string {
+	etcdKeySplit := strings.Split(etcdKey, "/")
+	return etcdKeySplit[len(etcdKeySplit)-1]
+}
+
+func readHostFromEtcdKey(etcdKey string) string {
+	etcdKeySplit := strings.Split(etcdKey, ":")
+	return etcdKeySplit[len(etcdKeySplit)-1]
+}
+
+func (w *Work) CheckAlarmLoop() {
+	// clean host path every host-block-Peroid, otherwise new alert will block by old alert.
+
+	// wait loda init Loda.NsAlarm finished.
+	for {
+		loda.Loda.RLock()
+		alarmNum := len(loda.Loda.NsAlarms)
+		loda.Loda.RUnlock()
+		if alarmNum != 0 {
+			log.Info("loda resource init finished.")
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// loda update NsAlarm loop.
+	for {
+		if err := w.UpdateAlarms(); err != nil {
+			log.Errorf("work loop error: %s", err)
+		} else {
+			log.Info("work loop success")
+		}
+
+		time.Sleep(interval * time.Second)
+	}
+}
+
+// UpdateAlarms init new alarm and delete removed alarm in etcd.
 func (w *Work) UpdateAlarms() error {
 	loda.Loda.RLock()
 	defer loda.Loda.RUnlock()
@@ -111,43 +149,6 @@ func (w *Work) UpdateAlarms() error {
 		}
 	}
 	return nil
-}
-
-func readEtcdLastSplit(etcdKey string) string {
-	etcdKeySplit := strings.Split(etcdKey, "/")
-	return etcdKeySplit[len(etcdKeySplit)-1]
-}
-
-func readHostFromEtcdKey(etcdKey string) string {
-	etcdKeySplit := strings.Split(etcdKey, ":")
-	return etcdKeySplit[len(etcdKeySplit)-1]
-}
-
-func (w *Work) CheckRegistryAlarmLoop() {
-	// clean host path every host-block-Peroid, otherwise new alert will block by old alert.
-
-	// wait loda init Loda.NsAlarm finished.
-	for {
-		loda.Loda.RLock()
-		alarmNum := len(loda.Loda.NsAlarms)
-		loda.Loda.RUnlock()
-		if alarmNum != 0 {
-			log.Info("loda resource init finished.")
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	// loda update NsAlarm loop.
-	for {
-		if err := w.UpdateAlarms(); err != nil {
-			log.Errorf("work loop error: %s", err)
-		} else {
-			log.Info("work loop success")
-		}
-
-		time.Sleep(interval * time.Second)
-	}
 }
 
 func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, receives []string, eventData models.EventData) error {

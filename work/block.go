@@ -118,12 +118,12 @@ func (w *Work) readBlock(ns string, alarm *loda.Alarm, host string) (status bloc
 
 	switch status {
 	case noBlock:
-		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStack, 1, alarm.MaxStackTime, every)
+		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStep, 1, alarm.MaxStackTime, every)
 		status, blockTimes, isBlock = alreadyAlertWhileBlock, 1, false
 
 	case addBlock:
 		status, blockTimes, isBlock = alreadyAlertWhileBlock, blockTimes+1, false
-		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStack, blockTimes, alarm.MaxStackTime, every)
+		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStep, blockTimes, alarm.MaxStackTime, every)
 
 	case alreadyAlertWhileBlock:
 		status, blockTimes = 0, 0

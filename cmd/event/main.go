@@ -55,7 +55,7 @@ func main() {
 	go loda.ReadLoop()
 	w := work.NewWork(c)
 	time.Sleep(500 * time.Millisecond) // TODO
-	go w.CheckRegistryAlarmLoop()
+	go w.CheckAlarmLoop()
 	go loda.UpdateOffMachineLoop()
 	go query.Start(w)
 
