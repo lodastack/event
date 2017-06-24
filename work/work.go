@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	interval        time.Duration = 20
+	interval        time.Duration = 60
 	AlarmStatusPath               = "status"
 	AlarmHostPath                 = "host"
 
@@ -122,6 +122,23 @@ func (w *Work) UpdateAlarms() error {
 	loda.Loda.RLock()
 	defer loda.Loda.RUnlock()
 	for ns, alarms := range loda.Loda.NsAlarms {
+		// delete ns/alarm dir if not exist in loda.
+		if rep, err := w.Cluster.RecursiveGet(ns); err == nil {
+			// loop alarm of the ns
+			for _, alarmNode := range rep.Node.Nodes {
+				alarmVersion := readEtcdLastSplit(alarmNode.Key)
+				_, ok := loda.Loda.NsAlarms[ns][alarmVersion]
+				if !ok {
+					log.Errorf("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
+					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
+						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
+					}
+					continue
+				}
+			}
+		}
+
+		// create ns/alarm dir on etcd if not exist.
 		if len(alarms) == 0 {
 			continue
 		}
@@ -133,8 +150,7 @@ func (w *Work) UpdateAlarms() error {
 				continue
 			}
 		}
-
-		// create alarm and alarm/all dir if not exit.
+		// create alarm dir if not exit.
 		for _, alarm := range alarms {
 			alarmKey := ns + "/" + alarm.AlarmData.Version
 			if _, err := w.Cluster.Get(alarmKey, nil); err != nil {
