@@ -13,7 +13,7 @@ type Alarm struct {
 }
 
 var (
-	defaultBlockStep = 5  // unit: minute   TODO
+	defaultBlockStep = 10 // unit: minute
 	maxBlockTime     = 60 // unit: minute
 )
 
