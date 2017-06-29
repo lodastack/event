@@ -165,7 +165,7 @@ func (w *Work) UpdateAlarms() error {
 	return nil
 }
 
-func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, receives []string, eventData models.EventData) error {
+func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, receives []string, eventData models.EventData) error {
 	now := time.Now().Local()
 	alarmLevel, _ := alarmLevelMap[alarm.Level]
 	newStatus := models.Status{
@@ -175,12 +175,12 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 		Name:        alarm.Name,
 		Measurement: alarm.Measurement,
 		Host:        host,
+		Ip:          ip,
 		Ns:          ns,
 		Level:       level,
 
 		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
-		Ip:       loda.MachineIp(host),
 		Reciever: receives,
 	}
 
@@ -209,11 +209,12 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, level string, rece
 }
 
 // handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
-func (w *Work) handleEvent(ns, version, host, eventID string, eventData models.EventData, alarm *loda.Alarm, reveives []string) error {
+func (w *Work) handleEvent(ns, version, host, ip, eventID string, eventData models.EventData, alarm *loda.Alarm, reveives []string) error {
 	if err := sendOne(
 		alarm.AlarmData.Name,
 		alarm.AlarmData.Expression+alarm.AlarmData.Value,
 		alarm.AlarmData.Level,
+		ip,
 		strings.Split(alarm.AlarmData.Alert, ","),
 		reveives,
 		eventData); err != nil {
@@ -242,6 +243,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
 		return nil
 	}
+	ip := loda.MachineIp(host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
 	reveives := GetRevieves(groups)
@@ -250,7 +252,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	}
 
 	// update alarm status
-	if err := w.setAlarmStatus(ns, alarm.AlarmData, host, eventData.Level, reveives, eventData); err != nil {
+	if err := w.setAlarmStatus(ns, alarm.AlarmData, host, ip, eventData.Level, reveives, eventData); err != nil {
 		log.Errorf("set ns %s alarm %s host %s fail: %s",
 			ns, alarm.AlarmData.Version, host, err.Error())
 	}
@@ -262,6 +264,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			alarm.AlarmData.Name,
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
 			OK,
+			ip,
 			strings.Split(alarm.AlarmData.Alert, ","),
 			reveives,
 			eventData)
@@ -274,7 +277,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	// ID format: "time:measurement:tags"
 	// handle event by ns-all
 	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
-	if err := w.handleEvent(ns, alarm.AlarmData.Version, host, eventId, eventData, alarm, reveives); err != nil {
+	if err := w.handleEvent(ns, alarm.AlarmData.Version, host, ip, eventId, eventData, alarm, reveives); err != nil {
 		log.Errorf("handle event by host path fail: %s", err.Error())
 		return err
 	}

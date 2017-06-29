@@ -70,10 +70,11 @@ func genMailContent(alertMsg models.AlertMsg) string {
 	}
 	status := fmt.Sprintf("<font style=\"color:%s\">%s</font>", levelColor, alertMsg.Level)
 
-	return fmt.Sprintf("%s\t%s</br></br>ns: %s</br>%s </br>value: %.2f </br></br>time: %v",
+	return fmt.Sprintf("%s\t%s</br></br>ns: %s</br>ip: %s</br>%s </br>value: %.2f </br></br>time: %v",
 		alertMsg.AlarmName,
 		status,
 		alertMsg.Ns,
+		alertMsg.IP,
 		tagDescribe,
 		alertMsg.Value,
 		alertMsg.Time.Format(timeFormat))

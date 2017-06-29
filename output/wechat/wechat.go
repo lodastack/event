@@ -34,9 +34,10 @@ func SendWechat(alertMsg models.AlertMsg) error {
 
 	} else {
 		title = fmt.Sprintf("报警:%s  %s", alertMsg.AlarmName, alertMsg.Level)
-		msg = fmt.Sprintf("内容:\nmeasurement:  %s\nns: %s\n%s\nvalue: %.2f \ntime: %v",
+		msg = fmt.Sprintf("内容:\nmeasurement:  %s\nns: %s\nip: %s\n%s\nvalue: %.2f \ntime: %v",
 			alertMsg.Measurement,
 			alertMsg.Ns,
+			alertMsg.IP,
 			tagDescribe,
 			alertMsg.Value,
 			alertMsg.Time.Format(timeFormat))
