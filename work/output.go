@@ -35,10 +35,11 @@ func GetRevieves(groups []string) []string {
 	return recieves
 }
 
-func sendOne(alarmName, expression, alertLevel string, alertTypes []string, recieves []string, eventData models.EventData) error {
+func sendOne(alarmName, expression, alertLevel, ip string, alertTypes []string, recieves []string, eventData models.EventData) error {
 	return send(alertTypes, recieves, alertLevel, models.NewAlertMsg(
 		eventData.Ns,
 		(*eventData.Data.Series[0]).Tags["host"],
+		ip,
 		(*eventData.Data.Series[0]).Name,
 		eventData.Level,
 		alarmName,
@@ -47,11 +48,6 @@ func sendOne(alarmName, expression, alertLevel string, alertTypes []string, reci
 		(*eventData.Data.Series[0]).Values[0][1].(float64),
 		eventData.Time),
 	)
-}
-
-func sendMulit(ns, alarmName string, alertTypes []string, recieves []string, msg string) error {
-	alertMsg := models.AlertMsg{AlarmName: alarmName, Ns: ns, Msg: msg}
-	return send(alertTypes, recieves, "", alertMsg)
 }
 
 func send(alertTypes, recieves []string, alertLevel string, alertMsg models.AlertMsg) error {
