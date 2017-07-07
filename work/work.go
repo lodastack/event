@@ -107,50 +107,85 @@ func (w *Work) CheckAlarmLoop() {
 
 	// loda update NsAlarm loop.
 	for {
-		if err := w.UpdateAlarms(); err != nil {
+		time.Sleep(interval * time.Second)
+
+		if err := w.CheckEtcdAlarms(); err != nil {
 			log.Errorf("work loop error: %s", err)
 		} else {
 			log.Info("work loop success")
 		}
-
-		time.Sleep(interval * time.Second)
 	}
 }
 
 // UpdateAlarms init new alarm and delete removed alarm in etcd.
-func (w *Work) UpdateAlarms() error {
+func (w *Work) CheckEtcdAlarms() error {
 	loda.Loda.RLock()
 	defer loda.Loda.RUnlock()
+
+	// delete ns if not exist in loda.
+	rep, err := w.Cluster.RecursiveGet("")
+	if err != nil {
+		log.Error("read root fail: %s", err.Error())
+	} else {
+		for _, nsNode := range rep.Node.Nodes {
+			_ns := readEtcdLastSplit(nsNode.Key)
+			if _, ok := loda.Loda.NsAlarms[_ns]; !ok {
+				nsPath := etcdPrefix + "/" + _ns
+				log.Infof("cannot read ns %s on loda, remove it", _ns)
+				if err := w.Cluster.DeleteDir(nsPath); err != nil {
+					log.Errorf("delete ns %s fail: %s", nsPath, err.Error())
+				}
+			}
+		}
+	}
+
+	// check the ns/alarm/host on etcd.
 	for ns, alarms := range loda.Loda.NsAlarms {
-		// delete ns/alarm dir if not exist in loda.
-		if rep, err := w.Cluster.RecursiveGet(ns); err == nil {
-			// loop alarm of the ns
+		if rep, err := w.Cluster.RecursiveGet(ns); err != nil {
+			// create ns dir if not exist.
+			if len(alarms) == 0 {
+				continue
+			}
+			log.Infof("get ns %s fail(%s) set it", ns, err.Error())
+			if err := w.Cluster.CreateDir(ns); err != nil {
+				log.Errorf("work set ns %s error: %s, skip this ns", ns, err.Error())
+			}
+		} else {
 			for _, alarmNode := range rep.Node.Nodes {
 				alarmVersion := readEtcdLastSplit(alarmNode.Key)
-				_, ok := loda.Loda.NsAlarms[ns][alarmVersion]
-				if !ok {
-					log.Errorf("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
+				if _, ok := loda.Loda.NsAlarms[ns][alarmVersion]; !ok {
+					// delete the alarm not in loda
+					log.Infof("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
 					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
 						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
 					}
-					continue
+				} else {
+					// delete the host not in loda
+					alarmKey := ns + "/" + alarmVersion + "/" + AlarmStatusPath
+					hostStatusNodes, err := w.Cluster.RecursiveGet(alarmKey)
+					if err != nil {
+						log.Errorf("read etcd path fail %s", alarmKey)
+						continue
+					}
+					for _, hostNode := range hostStatusNodes.Node.Nodes {
+						hostname := readEtcdLastSplit(hostNode.Key)
+						if loda.MachineIp(ns, hostname) != "" {
+							continue
+						}
+						log.Infof("cannot read ns %s hostname %s on loda, remove it", ns, hostname)
+						statusPath := alarmNode.Key + "/" + AlarmStatusPath + "/" + hostname
+						if err := w.Cluster.DeleteDir(statusPath); err != nil {
+							log.Errorf("delete host %s fail: %s", statusPath, err.Error())
+						}
+						hostPath := alarmNode.Key + "/" + AlarmHostPath + "/" + hostname
+						w.Cluster.DeleteDir(hostPath)
+					}
+
 				}
 			}
 		}
 
-		// create ns/alarm dir on etcd if not exist.
-		if len(alarms) == 0 {
-			continue
-		}
-		// create ns dir if not exist.
-		if _, err := w.Cluster.Get(ns, nil); err != nil {
-			log.Infof("get ns %s fail(%s) set it", ns, err.Error())
-			if err := w.Cluster.CreateDir(ns); err != nil {
-				log.Errorf("work set ns %s error: %s, skip this ns", ns, err.Error())
-				continue
-			}
-		}
-		// create alarm dir if not exit.
+		// create alarm if not exit.
 		for _, alarm := range alarms {
 			alarmKey := ns + "/" + alarm.AlarmData.Version
 			if _, err := w.Cluster.Get(alarmKey, nil); err != nil {
@@ -243,7 +278,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
 		return nil
 	}
-	ip := loda.MachineIp(host)
+	ip := loda.MachineIp(ns, host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
 	reveives := GetRevieves(groups)
