@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	readRegInterval time.Duration = 1
+	readRegInterval time.Duration = 2
 	Loda            lodaAlarm
 )
 

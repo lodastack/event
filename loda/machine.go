@@ -24,7 +24,7 @@ type MachineGet struct {
 }
 
 var offlineMachines map[string]MachineStatus
-var machinesIp map[string]string
+var Machines map[string]map[string]string
 var mu sync.RWMutex
 var offlineMachineInterfal time.Duration = 60
 
@@ -36,28 +36,34 @@ func UpdateOffMachineLoop() {
 	if err != nil {
 		log.Errorf("get offline machine err: %s", err.Error())
 	}
+
+	getMachines := func() {
+		machines, err := AllNsMachine()
+		if err != nil {
+			log.Errorf("get offline machine err: %s", err.Error())
+		} else {
+			mu.Lock()
+			Machines = machines
+			mu.Unlock()
+		}
+
+		machineStatus, err := OfflineMachines()
+		if err != nil {
+			log.Errorf("get offline machine err: %s", err.Error())
+		} else {
+			mu.Lock()
+			offlineMachines = machineStatus
+			mu.Unlock()
+		}
+	}
+
+	getMachines()
 	go func() {
 		c := time.Tick(offlineMachineInterfal * time.Second)
 		for {
 			select {
 			case <-c:
-				ips, err := MachinesIp()
-				if err != nil {
-					log.Errorf("get offline machine err: %s", err.Error())
-				} else {
-					mu.Lock()
-					machinesIp = ips
-					mu.Unlock()
-				}
-
-				machineStatus, err := OfflineMachines()
-				if err != nil {
-					log.Errorf("get offline machine err: %s", err.Error())
-				} else {
-					mu.Lock()
-					offlineMachines = machineStatus
-					mu.Unlock()
-				}
+				getMachines()
 			}
 		}
 	}()
@@ -75,10 +81,14 @@ func IsMachineOffline(ns, hostname string) bool {
 	return true
 }
 
-func MachineIp(hostname string) string {
+func MachineIp(ns, hostname string) string {
 	mu.RLock()
 	defer mu.RUnlock()
-	ip, _ := machinesIp[hostname]
+	nsMachine, ok := Machines[ns]
+	if !ok || len(nsMachine) == 0 {
+		return ""
+	}
+	ip, _ := nsMachine[hostname]
 	return ip
 }
 
@@ -116,10 +126,24 @@ func OfflineMachines() (map[string]MachineStatus, error) {
 	return res, nil
 }
 
-func MachinesIp() (map[string]string, error) {
+func AllNsMachine() (map[string]map[string]string, error) {
+	allNs, err := AllNS()
+	if err != nil {
+		return nil, err
+	}
+	allMachine := make(map[string]map[string]string, 0)
+	for _, ns := range allNs {
+		if allMachine[ns], err = OneNsMachine(ns); err != nil {
+			return nil, err
+		}
+	}
+	return allMachine, nil
+}
+
+func OneNsMachine(ns string) (map[string]string, error) {
 	var machineData MachineGet
 	var machineIps map[string]string
-	url := fmt.Sprintf("http://registry.monitor.ifengidc.com/api/v1/event/resource?ns=loda&type=machine")
+	url := fmt.Sprintf("http://registry.monitor.ifengidc.com/api/v1/event/resource?ns=%s&type=machine", ns)
 
 	resp, err := requests.Get(url)
 	if err != nil {
