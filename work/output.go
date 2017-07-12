@@ -75,6 +75,7 @@ func output(alertType []string, alertMsg models.AlertMsg) error {
 			continue
 		}
 		if err := handlerFunc(alertMsg); err != nil {
+			log.Error("output %s fail: %s", handler, err.Error())
 			return err
 		}
 	}
