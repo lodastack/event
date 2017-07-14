@@ -45,6 +45,13 @@ func SendEMail(alertMsg models.AlertMsg) error {
 	}
 	subject = config.GetConfig().Mail.SubjectPrefix + " " + subject
 
+	var addPng bool
+	pngBase64 := []byte{}
+	pngBase64, err := getPngBase64(alertMsg)
+	if err == nil && len(pngBase64) != 0 {
+		addPng = true
+	}
+
 	return SendMail(config.GetConfig().Mail.Host,
 		config.GetConfig().Mail.Port,
 		config.GetConfig().Mail.User,
@@ -52,15 +59,19 @@ func SendEMail(alertMsg models.AlertMsg) error {
 		config.GetConfig().Mail.User+mailSuffix,
 		revieve, []string{""},
 		subject,
-		msg)
+		msg,
+		addPng, pngBase64,
+	)
 }
 
 func genMailContent(alertMsg models.AlertMsg) string {
 	var tagDescribe string
-	for k, v := range alertMsg.Tags {
-		tagDescribe += k + ":\t" + v + "</br>"
+	if len(alertMsg.Tags) > 0 {
+		for k, v := range alertMsg.Tags {
+			tagDescribe += k + ":\t" + v + "</br>"
+		}
+		tagDescribe = tagDescribe[:len(tagDescribe)-5]
 	}
-	tagDescribe = tagDescribe[:len(tagDescribe)-5]
 
 	var levelColor string
 	if alertMsg.Level == OK {
@@ -70,11 +81,15 @@ func genMailContent(alertMsg models.AlertMsg) string {
 	}
 	status := fmt.Sprintf("<font style=\"color:%s\">%s</font>", levelColor, alertMsg.Level)
 
-	return fmt.Sprintf("%s\t%s</br></br>ns: %s</br>ip: %s</br>%s </br>value: %.2f </br></br>time: %v",
+	var ipDesc string
+	if alertMsg.IP != "" {
+		ipDesc = "</br>ip: " + alertMsg.IP
+	}
+	return fmt.Sprintf("%s\t%s</br></br>ns: %s%s</br>%s </br>value: %.2f </br></br>time: %v",
 		alertMsg.AlarmName,
 		status,
 		alertMsg.Ns,
-		alertMsg.IP,
+		ipDesc,
 		tagDescribe,
 		alertMsg.Value,
 		alertMsg.Time.Format(timeFormat))
@@ -104,27 +119,32 @@ func catchPanic(err *error, functionName string) {
 	}
 }
 
-func SendMail(host string, port int, userName string, password string, from string, to []string, cc []string, subject string, message string) (err error) {
+func SendMail(host string, port int, userName string, password string, from string, to []string, cc []string, subject string, message string, addPng bool, pngBase64 []byte) (err error) {
 	defer catchPanic(&err, "SendEmail")
 	parameters := struct {
-		From    string
-		To      string
-		Cc      string
-		Subject string
-		Message string
+		From      string
+		To        string
+		Cc        string
+		Subject   string
+		Message   string
+		PngBase64 []byte
 	}{
 		userName,
 		strings.Join([]string(to), ","),
 		strings.Join([]string(cc), ","),
 		subject,
 		message,
+		pngBase64,
 	}
 
 	buffer := new(bytes.Buffer)
-
-	template := template.Must(template.New("emailTemplate").Parse(emailScript()))
+	boundaryTag := "boundary_loda"
+	template := template.Must(template.New("emailTemplate").Parse(emailScript(addPng, boundaryTag)))
 	template.Execute(buffer, &parameters)
-
+	if addPng {
+		buffer.Write(parameters.PngBase64)
+		buffer.WriteString("\r\n--" + boundaryTag + "--")
+	}
 	auth := LoginAuth(userName, password)
 
 	err = sendMail(
@@ -137,7 +157,28 @@ func SendMail(host string, port int, userName string, password string, from stri
 	return err
 }
 
-func emailScript() (script string) {
+func emailScript(boundary bool, boundaryTag string) (script string) {
+	if boundary {
+		return fmt.Sprintf(`From: {{.From}}
+To: {{.To}}
+Cc: {{.Cc}}
+Subject: {{.Subject}}
+Content-Type: multipart/related; boundary=%s
+
+--%s
+Content-Type: text/html; charset=UTF-8
+
+
+{{.Message}}
+<br>  <img src="cid:img1">
+--%s
+Content-Type: image/png; name="test.png"
+Content-ID: <img1>
+Content-Disposition: inline;filename=test.png
+Content-Transfer-Encoding: base64
+
+`, boundaryTag, boundaryTag, boundaryTag)
+	}
 	return `From: {{.From}}
 To: {{.To}}
 Cc: {{.Cc}}

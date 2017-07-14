@@ -25,6 +25,7 @@ type Config struct {
 	Sms    SmsConfig      `toml:"sms"`
 	Wechat WechatConfig   `toml""wechat"`
 	Log    LogConfig      `toml:"log"`
+	Render RenderConfig   `toml:"render"`
 
 	EtcdConfig client.Config `toml:"-"`
 }
@@ -44,6 +45,12 @@ type MailConfig struct {
 
 	MailSuffix    string `toml:"mailsuffix"`
 	SubjectPrefix string `toml:subjectprefix`
+}
+
+type RenderConfig struct {
+	PhantomDir string `toml:"phantomdir"`
+	ImgDir     string `toml:"imgdir"`
+	RenderUrl  string `toml:"renderurl"`
 }
 
 type SmsConfig struct {
