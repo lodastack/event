@@ -270,8 +270,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 
 	host, ok := eventData.Host()
 	if !ok {
-		log.Errorf("event data has no host: %+v", eventData)
-		return errors.New("event has no host")
+		log.Debug("event data has no host, maybe cluster alarm.")
 	}
 
 	if loda.IsMachineOffline(ns, host) {
