@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/lodastack/log"
+
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/models"
 )
@@ -50,6 +52,8 @@ func SendEMail(alertMsg models.AlertMsg) error {
 	pngBase64, err := getPngBase64(alertMsg)
 	if err == nil && len(pngBase64) != 0 {
 		addPng = true
+	} else {
+		log.Errorf("getPngBase64 fail, err: %+v, length: %d", err, len(pngBase64))
 	}
 
 	return SendMail(config.GetConfig().Mail.Host,
