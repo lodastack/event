@@ -53,7 +53,7 @@ func SendEMail(alertMsg models.AlertMsg) error {
 	if err == nil && len(pngBase64) != 0 {
 		addPng = true
 	} else {
-		log.Errorf("getPngBase64 fail, err: %+v, length: %d", err, len(pngBase64))
+		log.Errorf("getPngBase64 fail, msg: %+v, err: %+v, length: %d", alertMsg, err, len(pngBase64))
 	}
 
 	return SendMail(config.GetConfig().Mail.Host,
@@ -101,25 +101,25 @@ func genMailContent(alertMsg models.AlertMsg) string {
 
 func catchPanic(err *error, functionName string) {
 	if r := recover(); r != nil {
-		fmt.Printf("%s : PANIC Defered : %v\n", functionName, r)
+		log.Errorf("sand mail fail, %s : PANIC Defered : %v\n", functionName, r)
 
 		// Capture the stack trace
 		buf := make([]byte, 10000)
 		runtime.Stack(buf, false)
 
-		fmt.Printf("%s : Stack Trace : %s", functionName, string(buf))
+		log.Errorf("sand mail fail, %s : Stack Trace : %s", functionName, string(buf))
 
 		if err != nil {
 			*err = fmt.Errorf("%v", r)
 		}
 	} else if err != nil && *err != nil {
-		fmt.Printf("%s : ERROR : %v\n", functionName, *err)
+		log.Errorf("sand mail fail, %s : ERROR : %v\n", functionName, *err)
 
 		// Capture the stack trace
 		buf := make([]byte, 10000)
 		runtime.Stack(buf, false)
 
-		fmt.Printf("%s : Stack Trace : %s", functionName, string(buf))
+		log.Errorf("sand mail fail, %s : Stack Trace : %s", functionName, string(buf))
 	}
 }
 
