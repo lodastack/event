@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/lodastack/event/config"
@@ -31,11 +32,17 @@ type RenderOps struct {
 }
 
 func RenderToPng(params *RenderOps) (string, error) {
-
 	binPath, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, PhantomjsBin))
 	renderScript, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, RenderScript))
-	pngPath, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.ImgDir, params.ID))
-	pngPath = pngPath + ".png"
+
+	replaceLetterFunc := func(r rune) rune {
+		if r == '"' || r == '\'' || r == '/' || r == '(' || r == ')' {
+			return '_'
+		}
+		return r
+	}
+	filename := strings.Map(replaceLetterFunc, params.ID+".png")
+	pngPath, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.ImgDir, filename))
 
 	renderUrl := fmt.Sprintf("%s?ns=%s&measurement=%s&starttime=%d&endtime=%d&fn=%s&title=%s&where=%s",
 		config.GetConfig().Render.RenderUrl, params.Ns, params.Measurement,
