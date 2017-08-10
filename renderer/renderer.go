@@ -54,10 +54,12 @@ func RenderToPng(params *RenderOps) (string, error) {
 	cmd := exec.Command(binPath, cmdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		log.Error("RenderToPng fail:", err.Error())
 		return "", err
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		log.Error("RenderToPng fail:", err.Error())
 		return "", err
 	}
 	go io.Copy(os.Stdout, stdout)

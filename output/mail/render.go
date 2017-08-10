@@ -9,6 +9,7 @@ import (
 
 	"github.com/lodastack/event/models"
 	"github.com/lodastack/event/renderer"
+	"github.com/lodastack/log"
 )
 
 func getPngPath(alertMsg models.AlertMsg) (string, error) {
@@ -33,13 +34,13 @@ func getPngPath(alertMsg models.AlertMsg) (string, error) {
 		Title:       alertMsg.Ns + " " + alertMsg.Measurement + whereStr,
 		Where:       whereSql,
 	}
-	file, err := renderer.RenderToPng(&params)
-	return file, err
+	return renderer.RenderToPng(&params)
 }
 
 func readPngToBase64(path string) ([]byte, error) {
 	pngByte, err := ioutil.ReadFile(path)
 	if err != nil || len(pngByte) == 0 {
+		log.Errorf("readPngToBase64 fail: err: %v, length: %d", err, len(pngByte))
 		return nil, fmt.Errorf("invalid png file")
 	}
 	pngBase64 := make([]byte, base64.StdEncoding.EncodedLen(len(pngByte)))
