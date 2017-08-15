@@ -260,7 +260,9 @@ func (w *Work) handleEvent(ns, version, host, ip, eventID string, eventData mode
 }
 
 func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) error {
+	loda.Loda.RLock()
 	alarm, ok := loda.Loda.NsAlarms[ns][alarmversion]
+	loda.Loda.RUnlock()
 	if !ok {
 		log.Errorf("read ns %s alarm %s alarm data error", ns, alarmversion)
 		return errors.New("event process error: not have alarm data")
