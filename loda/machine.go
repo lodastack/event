@@ -25,14 +25,14 @@ type MachineGet struct {
 
 var offlineMachines map[string]MachineStatus
 var Machines map[string]map[string]string
-var mu sync.RWMutex
+var machineMu sync.RWMutex
 var offlineMachineInterfal time.Duration = 60
 
 func UpdateOffMachineLoop() {
 	var err error
-	mu.Lock()
+	machineMu.Lock()
 	offlineMachines, err = OfflineMachines()
-	mu.Unlock()
+	machineMu.Unlock()
 	if err != nil {
 		log.Errorf("get offline machine err: %s", err.Error())
 	}
@@ -42,18 +42,18 @@ func UpdateOffMachineLoop() {
 		if err != nil {
 			log.Errorf("get offline machine err: %s", err.Error())
 		} else {
-			mu.Lock()
+			machineMu.Lock()
 			Machines = machines
-			mu.Unlock()
+			machineMu.Unlock()
 		}
 
 		machineStatus, err := OfflineMachines()
 		if err != nil {
 			log.Errorf("get offline machine err: %s", err.Error())
 		} else {
-			mu.Lock()
+			machineMu.Lock()
 			offlineMachines = machineStatus
-			mu.Unlock()
+			machineMu.Unlock()
 		}
 	}
 
@@ -70,8 +70,8 @@ func UpdateOffMachineLoop() {
 }
 
 func IsMachineOffline(ns, hostname string) bool {
-	mu.RLock()
-	defer mu.RUnlock()
+	machineMu.RLock()
+	defer machineMu.RUnlock()
 	if _, ok := offlineMachines[ns]; !ok {
 		return false
 	}
@@ -82,8 +82,8 @@ func IsMachineOffline(ns, hostname string) bool {
 }
 
 func MachineIp(ns, hostname string) string {
-	mu.RLock()
-	defer mu.RUnlock()
+	machineMu.RLock()
+	defer machineMu.RUnlock()
 	nsMachine, ok := Machines[ns]
 	if !ok || len(nsMachine) == 0 {
 		return ""
