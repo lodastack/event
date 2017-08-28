@@ -203,6 +203,7 @@ func (w *Work) CheckEtcdAlarms() error {
 func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, receives []string, eventData models.EventData) error {
 	now := time.Now().Local()
 	alarmLevel, _ := alarmLevelMap[alarm.Level]
+	receiverList := getRecieverInfo(receives)
 	newStatus := models.Status{
 		UpdateTime:  now,
 		CreateTime:  now,
@@ -216,7 +217,7 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, 
 
 		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
-		Reciever: receives,
+		Reciever: receiverList,
 	}
 
 	statusPath := ns + "/" + alarm.Version + "/" + AlarmStatusPath + "/" + host

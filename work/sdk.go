@@ -7,13 +7,31 @@ import (
 	"time"
 
 	"github.com/lodastack/event/config"
+	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
+	"github.com/lodastack/log"
 	m "github.com/lodastack/models"
 	"github.com/lodastack/sdk-go"
 )
 
-func logAlarm(name, ns, measurement, host, level string, users []string, value float64) error {
+func getRecieverInfo(revievers []string) []string {
+	receiverInfoSplit := make([]string, len(revievers))
+	receiverInfo, err := loda.GetUsers(revievers...)
+	if err != nil {
+		log.Errorf("GetUsers fail: %s", err.Error())
+	}
+	var i int
+	for _, receiver := range receiverInfo {
+		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
+		i++
+	}
+	return receiverInfoSplit[:i]
+}
+
+func logAlarm(name, ns, measurement, host, level string, reveivers []string, value float64) error {
 	ms := make([]m.Metric, 1)
+	receiverList := getRecieverInfo(reveivers)
+
 	ms[0] = m.Metric{
 		Name:      "alert",
 		Timestamp: time.Now().Unix(),
@@ -23,7 +41,7 @@ func logAlarm(name, ns, measurement, host, level string, users []string, value f
 			"measurement": measurement,
 			"ns":          ns,
 			"level":       level,
-			"to":          strings.Join(users, "\\,")},
+			"to":          strings.Join(receiverList, "\\,")},
 		Value: fmt.Sprintf("%.2f", value),
 	}
 
