@@ -116,5 +116,6 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 		errResp(resp, http.StatusInternalServerError, "handle clear status")
 		return
 	}
+	succResp(resp, "OK", nil)
 	resp.WriteHeader(200)
 }

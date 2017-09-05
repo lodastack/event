@@ -61,7 +61,7 @@ func logStatus(status models.Status) error {
 			"measurement": status.Measurement,
 			"ns":          status.Ns,
 			"host":        status.Host,
-			"":            ""},
+		},
 		// Value: fmt.Sprintf("%.2f", value),
 	}
 	if status.Level == OK {
