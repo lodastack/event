@@ -226,13 +226,13 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, 
 			if oldStatus.Level == newStatus.Level {
 				newStatus.CreateTime = oldStatus.CreateTime
 			} else {
-				if err := logOneStatus(newStatus); err != nil {
+				if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, host, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
 					log.Errorf("log status fail: %s", err.Error())
 				}
 			}
 		}
 	} else {
-		if err := logNewStatus(newStatus); err != nil {
+		if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, host, level, receives, newStatus.Value); err != nil {
 			log.Errorf("log status fail: %s", err.Error())
 		}
 	}

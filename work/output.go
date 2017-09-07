@@ -55,7 +55,7 @@ func send(alertTypes, recieves []string, alertLevel string, alertMsg models.Aler
 
 	if levelMsg, ok := levelMap[alertLevel]; ok {
 		go func(name, ns, measurement, host, level string, users []string, value float64) {
-			if err := logAlarm(name, ns, measurement, host, level, users, value); err != nil {
+			if err := sdkLog.Event(name, ns, measurement, host, level, users, value); err != nil {
 				log.Errorf("log alarm fail, error: %s, data: %+v", err.Error(), alertMsg)
 			}
 		}(alertMsg.AlarmName, alertMsg.Ns, alertMsg.Measurement, alertMsg.Host, levelMsg, alertMsg.Users, alertMsg.Value)
