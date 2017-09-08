@@ -46,7 +46,7 @@ func SendSMS(alertMsg models.AlertMsg) error {
 			alertMsg.Time.Format(timeFormat))
 	}
 
-	mobiles := loda.GetUserMobile(alertMsg.Users)
+	mobiles := loda.GetUserMobile(alertMsg.Receivers)
 	// fmt.Println("mobile number:", mobiles, err)
 	for _, mobile := range mobiles {
 		go func(mobile string) {

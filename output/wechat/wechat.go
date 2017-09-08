@@ -47,12 +47,12 @@ func SendWechat(alertMsg models.AlertMsg) error {
 			alertMsg.Time.Format(timeFormat))
 	}
 
-	if len(alertMsg.Users) == 0 {
-		log.Error("invalid Users: %v", alertMsg.Users)
+	if len(alertMsg.Receivers) == 0 {
+		log.Error("invalid Users: %v", alertMsg.Receivers)
 		return nil
 	}
 	_, err := requests.PostWithHeader(config.GetConfig().Wechat.Url,
-		map[string]string{"account": strings.Join(alertMsg.Users, "|"), "title": title, "content": msg}, []byte{},
+		map[string]string{"account": strings.Join(alertMsg.Receivers, "|"), "title": title, "content": msg}, []byte{},
 		map[string]string{"authToken": config.GetConfig().Wechat.Token}, 10)
 	if err != nil {
 		log.Error("send Wechat fail: %s", err.Error())

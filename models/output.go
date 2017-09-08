@@ -3,7 +3,7 @@ package models
 import "time"
 
 type AlertMsg struct {
-	Users []string
+	Receivers []string
 
 	Ns          string
 	Host        string
@@ -20,7 +20,7 @@ type AlertMsg struct {
 }
 
 func NewAlertMsg(ns, host, ip, measurement, level string, alarmName string,
-	expression string, tags map[string]string, value float64, time time.Time) AlertMsg {
+	expression string, receivers []string, tags map[string]string, value float64, time time.Time) AlertMsg {
 	return AlertMsg{
 		Ns:          ns,
 		Host:        host,
@@ -29,6 +29,7 @@ func NewAlertMsg(ns, host, ip, measurement, level string, alarmName string,
 		AlarmName:   alarmName,
 		Expression:  expression,
 		Level:       level,
+		Receivers:   receivers,
 		Tags:        tags,
 		Value:       value,
 		Time:        time,

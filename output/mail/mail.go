@@ -27,9 +27,9 @@ var mailSuffix, mailSubject string
 func SendEMail(alertMsg models.AlertMsg) error {
 	var subject string
 
-	revieve := make([]string, len(alertMsg.Users))
+	revieve := make([]string, len(alertMsg.Receivers))
 	mailSuffix = config.GetConfig().Mail.MailSuffix
-	for index, username := range alertMsg.Users {
+	for index, username := range alertMsg.Receivers {
 		revieve[index] = username + mailSuffix
 	}
 
