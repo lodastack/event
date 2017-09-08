@@ -246,7 +246,7 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, 
 
 // handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
 func (w *Work) handleEvent(ns, version, host, ip, eventID string, eventData models.EventData, alarm *loda.Alarm, reveives []string) error {
-	if err := sendOne(
+	if err := send(
 		alarm.AlarmData.Name,
 		alarm.AlarmData.Expression+alarm.AlarmData.Value,
 		alarm.AlarmData.Level,
@@ -283,7 +283,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	ip := loda.MachineIp(ns, host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
-	reveives := GetRevieves(groups)
+	reveives := GetGroupUsers(groups)
 	if len(reveives) == 0 {
 		return errors.New("empty recieve: " + strings.Join(groups, ","))
 	}
@@ -297,7 +297,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	// read and check block/times
 	if eventData.Level == OK {
 		w.clearBlock(ns, alarm.AlarmData.Version, host)
-		return sendOne(
+		return send(
 			alarm.AlarmData.Name,
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
 			OK,

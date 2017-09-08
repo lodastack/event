@@ -12,60 +12,55 @@ var levelMap map[string]string
 
 func init() {
 	levelMap = map[string]string{
-		"OK": "OK",
-		"1":  "一级报警",
-		"2":  "二级报警",
-		"3":  "三级报警",
+		"unknow": "Unknow Level",
+		"OK":     "OK",
+		"1":      "一级报警",
+		"2":      "二级报警",
+		"3":      "三级报警",
 	}
 }
 
-func GetRevieves(groups []string) []string {
-	recieves := make([]string, 0)
+// GetGroupUsers return users of the groups.
+func GetGroupUsers(groups []string) []string {
+	recievers := make([]string, 0)
 	for _, gname := range groups {
 		users, err := loda.GetUserByGroup(gname)
 		if err != nil {
 			continue
 		}
-		recieves = append(recieves, users...)
+		recievers = append(recievers, users...)
 	}
-	recieves = common.RemoveDuplicateAndEmpty(recieves)
-	if len(recieves) == 0 {
+	recievers = common.RemoveDuplicateAndEmpty(recievers)
+	if len(recievers) == 0 {
 		return nil
 	}
-	return recieves
+	return recievers
 }
 
-func sendOne(alarmName, expression, alertLevel, ip string, alertTypes []string, recieves []string, eventData models.EventData) error {
-	return send(alertTypes, recieves, alertLevel, models.NewAlertMsg(
-		eventData.Ns,
-		(*eventData.Data.Series[0]).Tags["host"],
-		ip,
-		(*eventData.Data.Series[0]).Name,
-		eventData.Level,
-		alarmName,
-		expression,
-		(*eventData.Data.Series[0]).Tags,
-		(*eventData.Data.Series[0]).Values[0][1].(float64),
-		eventData.Time),
-	)
-}
-
-func send(alertTypes, recieves []string, alertLevel string, alertMsg models.AlertMsg) error {
-	alertMsg.Users = recieves
-
-	if levelMsg, ok := levelMap[alertLevel]; ok {
-		go func(name, ns, measurement, host, level string, users []string, value float64) {
-			if err := sdkLog.Event(name, ns, measurement, host, level, users, value); err != nil {
-				log.Errorf("log alarm fail, error: %s, data: %+v", err.Error(), alertMsg)
-			}
-		}(alertMsg.AlarmName, alertMsg.Ns, alertMsg.Measurement, alertMsg.Host, levelMsg, alertMsg.Users, alertMsg.Value)
+func send(alarmName, expression, alertLevel, ip string, alertTypes []string, recievers []string, eventData models.EventData) error {
+	host, measurement := (*eventData.Data.Series[0]).Tags["host"], (*eventData.Data.Series[0]).Name
+	tags := (*eventData.Data.Series[0]).Tags
+	value := (*eventData.Data.Series[0]).Values[0][1].(float64)
+	levelMsg, ok := levelMap[alertLevel]
+	if !ok {
+		levelMsg = levelMap["unknow"]
 	}
 
-	go output(alertTypes, alertMsg)
+	if err := sdkLog.Event(alarmName, eventData.Ns, measurement, host,
+		levelMsg, recievers, value); err != nil {
+		log.Errorf("log alarm fail, error: %s, data: %+v", err.Error())
+	}
+
+	alertMsg := models.NewAlertMsg(
+		eventData.Ns, host, ip, measurement,
+		eventData.Level, alarmName, expression, recievers, tags,
+		value, eventData.Time)
+	go sentToAlertHandler(alertTypes, alertMsg)
 	return nil
 }
 
-func output(alertType []string, alertMsg models.AlertMsg) error {
+// send the alertMsg to sms/mail/wechat handler.
+func sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
 	alertType = common.RemoveDuplicateAndEmpty(alertType)
 
 	for _, handler := range alertType {
