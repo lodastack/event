@@ -76,7 +76,7 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	level := params.Get("level")
 	status := params.Get("status")
 
-	allStatus, err := worker.HandleStatus(ns)
+	statusData := worker.Status.GetStatus(ns)
 	if err != nil {
 		log.Errorf("Work handle status error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle status error")
@@ -85,13 +85,13 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 
 	switch level {
 	case "ns":
-		succResp(resp, "OK", allStatus.CheckByNs())
+		succResp(resp, "OK", statusData.GetNsStatus())
 	case "alarm":
-		succResp(resp, "OK", allStatus.CheckByAlarm(ns))
+		succResp(resp, "OK", statusData.GetAlarmStatus())
 	case "host":
-		succResp(resp, "OK", allStatus.CheckByHost(ns))
+		succResp(resp, "OK", statusData.GetNotOkHost())
 	default:
-		succResp(resp, "OK", allStatus.Detail(status))
+		succResp(resp, "OK", statusData.GetStatusList(status))
 	}
 
 	resp.WriteHeader(200)
@@ -111,7 +111,7 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 		errResp(resp, http.StatusBadRequest, "invalid param")
 		return
 	}
-	if err := worker.ClearStatus(ns, alarm, host); err != nil {
+	if err := worker.Status.ClearStatus(ns, alarm, host); err != nil {
 		log.Errorf("Work ClearBlock %s %s %s error: %s.", ns, alarm, host, err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle clear status")
 		return

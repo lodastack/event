@@ -9,6 +9,7 @@ import (
 	"github.com/lodastack/log"
 
 	"github.com/coreos/etcd/client"
+	"github.com/lodastack/event/work/cluster"
 )
 
 const (
@@ -40,7 +41,7 @@ func getBlockKeyTTL(step, times, max, every int) (statusTTL, timesTTL int) {
 }
 
 func (w *Work) getBlockStatus(ns, version, host string) (blockStatus, error) {
-	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
+	hostPath := ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 	statusPath := hostPath + "/" + block
 	resp, err := w.Cluster.Get(statusPath, &client.GetOptions{})
 	if err != nil {
@@ -56,7 +57,7 @@ func (w *Work) getBlockStatus(ns, version, host string) (blockStatus, error) {
 }
 
 func (w *Work) getBlockTimes(ns, version, host string) (int, error) {
-	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
+	hostPath := ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 	statusPath := hostPath + "/" + blockTimes
 	resp, err := w.Cluster.Get(statusPath, &client.GetOptions{})
 	if err != nil {
@@ -72,7 +73,7 @@ func (w *Work) getBlockTimes(ns, version, host string) (int, error) {
 }
 
 func (w *Work) setBlockStatus(ns, version, host string, status blockStatus, statusTTL int) error {
-	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
+	hostPath := ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 
 	return w.Cluster.SetWithTTL(
 		hostPath+"/"+block,
@@ -81,7 +82,7 @@ func (w *Work) setBlockStatus(ns, version, host string, status blockStatus, stat
 }
 
 func (w *Work) updateBlockTimes(ns, version, host string, times, timesTTL int) error {
-	hostPath := ns + "/" + version + "/" + AlarmHostPath + "/" + host
+	hostPath := ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 
 	return w.Cluster.SetWithTTL(
 		hostPath+"/"+blockTimes,
@@ -90,7 +91,7 @@ func (w *Work) updateBlockTimes(ns, version, host string, times, timesTTL int) e
 }
 
 func (w *Work) clearBlock(ns, version, host string) error {
-	alarmHostPath := etcdPrefix + "/" + ns + "/" + version + "/" + AlarmHostPath + "/" + host
+	alarmHostPath := cluster.EtcdPrefix + "/" + ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 	if err := w.Cluster.DeleteDir(alarmHostPath); err != nil {
 		if !strings.Contains(err.Error(), "Key not found") {
 			return err
