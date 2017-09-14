@@ -82,7 +82,7 @@ func (s *SdkLog) newMetric(name, ns, measurement, host, level string, receives [
 }
 
 // setLastTime set last time string to ms.
-func (s *SdkLog) setNemToMetric(ms []m.Metric, name string) {
+func (s *SdkLog) setNameToMetric(ms []m.Metric, name string) {
 	for i := range ms {
 		ms[i].Name = name
 	}
@@ -99,14 +99,14 @@ func (s *SdkLog) setLastTime(ms []m.Metric, lastTimeStr string) {
 // Event log the event via sdk.(v1) It is used when output a alarm.
 func (s *SdkLog) Event(name, ns, measurement, host, level string, receives []string, value float64) error {
 	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
-	s.setNemToMetric(ms, eventMetricName)
+	s.setNameToMetric(ms, eventMetricName)
 	return sendToSDK(ms)
 }
 
 // NewStatus log a new status via sdkl.(v2)  maybe the event is the first alarm of this ns/alarm/host.
 func (s *SdkLog) NewStatus(name, ns, measurement, host, level string, receives []string, value float64) error {
 	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
-	s.setNemToMetric(ms, statusMetricName)
+	s.setNameToMetric(ms, statusMetricName)
 	s.setLastTime(ms, "0")
 	return sendToSDK(ms)
 }
@@ -114,7 +114,7 @@ func (s *SdkLog) NewStatus(name, ns, measurement, host, level string, receives [
 // StatusChange log a status change event via sdk.
 func (s *SdkLog) StatusChange(name, ns, measurement, host, level string, receives []string, value float64, statusStartTime time.Time) error {
 	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
-	s.setNemToMetric(ms, statusMetricName)
+	s.setNameToMetric(ms, statusMetricName)
 	lastTime := strconv.Itoa(int(time.Now().Sub(statusStartTime) / time.Second))
 	s.setLastTime(ms, lastTime)
 	return sendToSDK(ms)

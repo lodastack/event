@@ -56,3 +56,20 @@ func GetUserByGroup(gname string) ([]string, error) {
 
 	return users[:], nil
 }
+
+// GetGroupUsers return users of the groups.
+func GetGroupUsers(groups []string) []string {
+	recievers := make([]string, 0)
+	for _, gname := range groups {
+		users, err := GetUserByGroup(gname)
+		if err != nil {
+			continue
+		}
+		recievers = append(recievers, users...)
+	}
+	recievers = common.RemoveDuplicateAndEmpty(recievers)
+	if len(recievers) == 0 {
+		return nil
+	}
+	return recievers
+}

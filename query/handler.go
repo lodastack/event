@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
+	o "github.com/lodastack/event/output"
 	m "github.com/lodastack/models"
 
 	"github.com/lodastack/log"
@@ -60,8 +62,7 @@ func postDataHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// just return the origin influxdb rs
 	resp.Header().Add("Content-Type", "application/json")
-	succResp(resp, "OK", eventData)
-	resp.WriteHeader(200)
+	succResp(resp, 200, "OK", eventData)
 }
 
 // @router /status [get]
@@ -85,16 +86,14 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 
 	switch level {
 	case "ns":
-		succResp(resp, "OK", statusData.GetNsStatus())
+		succResp(resp, 200, "OK", statusData.GetNsStatus())
 	case "alarm":
-		succResp(resp, "OK", statusData.GetAlarmStatus())
+		succResp(resp, 200, "OK", statusData.GetAlarmStatus())
 	case "host":
-		succResp(resp, "OK", statusData.GetNotOkHost())
+		succResp(resp, 200, "OK", statusData.GetNotOkHost())
 	default:
-		succResp(resp, "OK", statusData.GetStatusList(status))
+		succResp(resp, 200, "OK", statusData.GetStatusList(status))
 	}
-
-	resp.WriteHeader(200)
 }
 
 func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
@@ -116,6 +115,42 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 		errResp(resp, http.StatusInternalServerError, "handle clear status")
 		return
 	}
-	succResp(resp, "OK", nil)
-	resp.WriteHeader(200)
+	succResp(resp, 200, "OK", nil)
+}
+
+func outputHandler(resp http.ResponseWriter, req *http.Request) {
+	params, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		log.Error("parse url error:", err.Error())
+		errResp(resp, http.StatusInternalServerError, "parse url error")
+		return
+	}
+	Types := params.Get("types")
+	Subject := params.Get("subject")
+	Content := params.Get("content")
+	groups := params.Get("groups")
+
+	if Types == "" || Content == "" || groups == "" {
+		succResp(resp, 400, "param is invalid", nil)
+		return
+	}
+
+	for _, _type := range strings.Split(Types, ",") {
+		handler, ok := o.Handlers[_type]
+		if !ok {
+			succResp(resp, 400, "type is invalid", nil)
+			return
+		}
+
+		go func(handler o.HandleFunc, receivers []string) {
+			if err := handler(models.AlertMsg{
+				Msg:       Content,
+				AlarmName: Subject,
+				Receivers: receivers}); err != nil {
+				log.Error("output fail:", err.Error())
+			}
+		}(handler, loda.GetGroupUsers(strings.Split(groups, ",")))
+	}
+
+	succResp(resp, 200, "OK", nil)
 }

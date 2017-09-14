@@ -2,7 +2,6 @@ package work
 
 import (
 	"github.com/lodastack/event/common"
-	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 	o "github.com/lodastack/event/output"
 	"github.com/lodastack/log"
@@ -18,23 +17,6 @@ func init() {
 		"2":      "二级报警",
 		"3":      "三级报警",
 	}
-}
-
-// GetGroupUsers return users of the groups.
-func GetGroupUsers(groups []string) []string {
-	recievers := make([]string, 0)
-	for _, gname := range groups {
-		users, err := loda.GetUserByGroup(gname)
-		if err != nil {
-			continue
-		}
-		recievers = append(recievers, users...)
-	}
-	recievers = common.RemoveDuplicateAndEmpty(recievers)
-	if len(recievers) == 0 {
-		return nil
-	}
-	return recievers
 }
 
 func send(alarmName, expression, alertLevel, ip string, alertTypes []string, recievers []string, eventData models.EventData) error {

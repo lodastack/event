@@ -33,7 +33,10 @@ func errResp(resp http.ResponseWriter, status int, msg string) {
 	resp.Write(bytes)
 }
 
-func succResp(resp http.ResponseWriter, msg string, data interface{}) {
+func succResp(resp http.ResponseWriter, code int, msg string, data interface{}) {
+	if code == 0 {
+		code = http.StatusOK
+	}
 	response := Response{
 		StatusCode: http.StatusOK,
 		Msg:        msg,
@@ -41,7 +44,7 @@ func succResp(resp http.ResponseWriter, msg string, data interface{}) {
 	}
 	bytes, _ := json.Marshal(&response)
 	resp.Header().Add("Content-Type", "application/json")
-	resp.WriteHeader(http.StatusOK)
+	resp.WriteHeader(response.StatusCode)
 	resp.Write(bytes)
 }
 
@@ -98,6 +101,7 @@ func addHandlers() {
 	prefix := "/event"
 
 	http.Handle(prefix+"/post", cors(http.HandlerFunc(postDataHandler)))
+	http.Handle(prefix+"/output", cors(http.HandlerFunc(outputHandler)))
 	http.Handle(prefix+"/status", cors(http.HandlerFunc(statusHandler)))
 	http.Handle(prefix+"/clear/status", cors(http.HandlerFunc(clearStatusHandler)))
 }
