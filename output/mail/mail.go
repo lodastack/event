@@ -25,30 +25,13 @@ const (
 var mailSuffix, mailSubject string
 
 func SendEMail(alertMsg models.AlertMsg) error {
-	var subject string
-
 	revieve := make([]string, len(alertMsg.Receivers))
 	mailSuffix = config.GetConfig().Mail.MailSuffix
 	for index, username := range alertMsg.Receivers {
 		revieve[index] = username + mailSuffix
 	}
 
-	var msg string
-	if alertMsg.Msg != "" {
-		subject = alertMsg.AlarmName
-		msg = alertMsg.AlarmName + " " + multi + "\n" +
-			"Ns:  " + alertMsg.Ns + "\nalert too many\n" +
-			alertMsg.Msg
-		msg = strings.Replace(msg, "\n", "</br>", -1)
-	} else {
-		subject = fmt.Sprintf("%s   %s   is  %s",
-			alertMsg.Host, alertMsg.Measurement, alertMsg.Level)
-		msg = genMailContent(alertMsg)
-	}
-	subject = config.GetConfig().Mail.SubjectPrefix + " " + subject
-
 	var addPng bool
-	pngBase64 := []byte{}
 	pngBase64, err := getPngBase64(alertMsg)
 	if err == nil && len(pngBase64) != 0 {
 		addPng = true
@@ -60,15 +43,25 @@ func SendEMail(alertMsg models.AlertMsg) error {
 		config.GetConfig().Mail.Port,
 		config.GetConfig().Mail.User,
 		config.GetConfig().Mail.Pwd,
-		config.GetConfig().Mail.User+mailSuffix,
-		revieve, []string{""},
-		subject,
-		msg,
+		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""},
+		config.GetConfig().Mail.SubjectPrefix+" "+genMailSubject(alertMsg),
+		genMailContent(alertMsg),
 		addPng, pngBase64,
 	)
 }
 
+func genMailSubject(alertMsg models.AlertMsg) string {
+	if alertMsg.Msg != "" {
+		return alertMsg.AlarmName
+	}
+	return fmt.Sprintf("%s   %s   is  %s",
+		alertMsg.Host, alertMsg.Measurement, alertMsg.Level)
+}
+
 func genMailContent(alertMsg models.AlertMsg) string {
+	if alertMsg.Msg != "" {
+		return alertMsg.Msg
+	}
 	var tagDescribe string
 	if len(alertMsg.Tags) > 0 {
 		for k, v := range alertMsg.Tags {

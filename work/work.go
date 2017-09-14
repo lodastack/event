@@ -25,8 +25,11 @@ var (
 )
 
 type Work struct {
+	// Cluster used to get/set etcd.
 	Cluster cluster.ClusterInf
-	Status  status.StatusInf
+
+	// query/set status.
+	Status status.StatusInf
 }
 
 func NewWork(c cluster.ClusterInf) *Work {
@@ -261,7 +264,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	ip := loda.MachineIp(ns, host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
-	reveives := GetGroupUsers(groups)
+	reveives := loda.GetGroupUsers(groups)
 	if len(reveives) == 0 {
 		return errors.New("empty recieve: " + strings.Join(groups, ","))
 	}

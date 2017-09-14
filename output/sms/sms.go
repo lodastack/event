@@ -18,6 +18,34 @@ const (
 )
 
 func SendSMS(alertMsg models.AlertMsg) error {
+	mobiles := loda.GetUserMobile(alertMsg.Receivers)
+	content := genSmsContent(alertMsg)
+
+	for _, mobile := range mobiles {
+		go sendSMS(mobile, content)
+	}
+	return nil
+}
+
+func sendSMS(mobile, content string) {
+	if mobile == "" || len(mobile) != 11 {
+		log.Error("invalid mobile: %s", mobile)
+		return
+	}
+	if _, err := requests.PostWithHeader(config.GetConfig().Sms.Url,
+		map[string]string{"mobile": mobile, "content": "监控报警:" + content},
+		[]byte{},
+		map[string]string{"authToken": config.GetConfig().Sms.Token},
+		10); err != nil {
+		log.Error("send sms fail: %s", err.Error())
+	}
+}
+
+func genSmsContent(alertMsg models.AlertMsg) string {
+	if alertMsg.Msg != "" {
+		return strings.Replace(alertMsg.AlarmName, "\n", "\r\n", -1)
+	}
+
 	var tagDescribe string
 	for k, v := range alertMsg.Tags {
 		tagDescribe += k + "\t:  " + v + "\r\n"
@@ -25,42 +53,15 @@ func SendSMS(alertMsg models.AlertMsg) error {
 	if len(alertMsg.Tags) > 1 {
 		tagDescribe = tagDescribe[:len(tagDescribe)-2]
 	}
+	return fmt.Sprintf("%s  %s\r\n%s  %s  %s\r\nns: %s\r\n%s \r\nvalue: %.2f \r\ntime: %v",
+		alertMsg.AlarmName,
+		alertMsg.Level,
+		alertMsg.Host,
+		alertMsg.Measurement,
+		alertMsg.Expression,
 
-	var msg string
-	if alertMsg.Msg != "" {
-		msg = alertMsg.AlarmName + " " + multi + "\n" +
-			"Ns:  " + alertMsg.Ns + "\nalert too many\n" +
-			alertMsg.Msg
-		msg = strings.Replace(msg, "\n", "\r\n", -1)
-	} else {
-		msg = fmt.Sprintf("%s  %s\r\n%s  %s  %s\r\nns: %s\r\n%s \r\nvalue: %.2f \r\ntime: %v",
-			alertMsg.AlarmName,
-			alertMsg.Level,
-			alertMsg.Host,
-			alertMsg.Measurement,
-			alertMsg.Expression,
-
-			alertMsg.Ns,
-			tagDescribe,
-			alertMsg.Value,
-			alertMsg.Time.Format(timeFormat))
-	}
-
-	mobiles := loda.GetUserMobile(alertMsg.Receivers)
-	// fmt.Println("mobile number:", mobiles, err)
-	for _, mobile := range mobiles {
-		go func(mobile string) {
-			if mobile == "" || len(mobile) != 11 {
-				log.Error("invalid mobile: %s", mobile)
-				return
-			}
-			_, err := requests.PostWithHeader(config.GetConfig().Sms.Url,
-				map[string]string{"mobile": mobile, "content": "监控报警:" + msg}, []byte{},
-				map[string]string{"authToken": config.GetConfig().Sms.Token}, 10)
-			if err != nil {
-				log.Error("send sms fail: %s", err.Error())
-			}
-		}(mobile)
-	}
-	return nil
+		alertMsg.Ns,
+		tagDescribe,
+		alertMsg.Value,
+		alertMsg.Time.Format(timeFormat))
 }
