@@ -9,16 +9,17 @@ import (
 var timeFormat string = "2006-01-02 15:04:05"
 
 type Status struct {
-	Name        string
-	Measurement string
-	Alarm       string
-	Host        string
-	Ip          string
-	Ns          string
-	Level       string
-	Value       float64
-	Tags        map[string]string
-	Reciever    []string
+	Name         string
+	Measurement  string
+	Alarm        string
+	AlarmVersion string
+	Host         string
+	Ip           string
+	Ns           string
+	Level        string
+	Value        float64
+	Tags         map[string]string
+	Reciever     []string
 
 	CTime      string
 	UTime      string
