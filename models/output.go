@@ -35,3 +35,10 @@ func NewAlertMsg(ns, host, ip, measurement, level string, alarmName string,
 		Time:        time,
 	}
 }
+
+type OutputMsg struct {
+	Types   []string `json:"types"`
+	Subject string   `json:"subject"`
+	Content string   `json:"content"`
+	Groups  []string `json:"groups"`
+}

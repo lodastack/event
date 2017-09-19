@@ -119,23 +119,24 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func outputHandler(resp http.ResponseWriter, req *http.Request) {
-	params, err := url.ParseQuery(req.URL.RawQuery)
+	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Error("parse url error:", err.Error())
-		errResp(resp, http.StatusInternalServerError, "parse url error")
+		log.Errorf("Read body fail: %s.", err.Error())
+		errResp(resp, http.StatusInternalServerError, "read body fail")
 		return
 	}
-	Types := params.Get("types")
-	Subject := params.Get("subject")
-	Content := params.Get("content")
-	groups := params.Get("groups")
-
-	if Types == "" || Content == "" || groups == "" {
+	var outputMsg models.OutputMsg
+	if err = json.Unmarshal(body, &outputMsg); err != nil {
+		log.Errorf("Json unmarshal error: %s.", err.Error())
+		errResp(resp, http.StatusInternalServerError, "parse json error")
+		return
+	}
+	if len(outputMsg.Types) == 0 || outputMsg.Content == "" || len(outputMsg.Groups) == 0 {
 		succResp(resp, 400, "param is invalid", nil)
 		return
 	}
 
-	for _, _type := range strings.Split(Types, ",") {
+	for _, _type := range outputMsg.Types {
 		handler, ok := o.Handlers[_type]
 		if !ok {
 			succResp(resp, 400, "type is invalid", nil)
@@ -144,12 +145,12 @@ func outputHandler(resp http.ResponseWriter, req *http.Request) {
 
 		go func(handler o.HandleFunc, receivers []string) {
 			if err := handler(models.AlertMsg{
-				Msg:       Content,
-				AlarmName: Subject,
+				Msg:       outputMsg.Content,
+				AlarmName: outputMsg.Subject,
 				Receivers: receivers}); err != nil {
 				log.Error("output fail:", err.Error())
 			}
-		}(handler, loda.GetGroupUsers(strings.Split(groups, ",")))
+		}(handler, loda.GetGroupUsers(outputMsg.Groups))
 	}
 
 	succResp(resp, 200, "OK", nil)
