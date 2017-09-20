@@ -43,7 +43,7 @@ func sendSMS(mobile, content string) {
 
 func genSmsContent(alertMsg models.AlertMsg) string {
 	if alertMsg.Msg != "" {
-		return strings.Replace(alertMsg.AlarmName, "\n", "\r\n", -1)
+		return strings.Replace(alertMsg.Msg, "\n", "\r\n", -1)
 	}
 
 	var tagDescribe string
