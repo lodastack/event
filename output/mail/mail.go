@@ -60,7 +60,7 @@ func genMailSubject(alertMsg models.AlertMsg) string {
 
 func genMailContent(alertMsg models.AlertMsg) string {
 	if alertMsg.Msg != "" {
-		return alertMsg.Msg
+		return strings.Replace(alertMsg.Msg, "\n", "</br>", -1)
 	}
 	var tagDescribe string
 	if len(alertMsg.Tags) > 0 {
