@@ -81,15 +81,15 @@ func IsMachineOffline(ns, hostname string) bool {
 	return true
 }
 
-func MachineIp(ns, hostname string) string {
+func MachineIp(ns, hostname string) (string, bool) {
 	machineMu.RLock()
 	defer machineMu.RUnlock()
 	nsMachine, ok := Machines[ns]
 	if !ok || len(nsMachine) == 0 {
-		return ""
+		return "", false
 	}
-	ip, _ := nsMachine[hostname]
-	return ip
+	ip, ok := nsMachine[hostname]
+	return ip, ok
 }
 
 func OfflineMachines() (map[string]MachineStatus, error) {

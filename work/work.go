@@ -13,7 +13,7 @@ import (
 	"github.com/lodastack/event/work/cluster"
 	"github.com/lodastack/event/work/status"
 
-	"github.com/coreos/etcd/client"
+	// "github.com/coreos/etcd/client"
 	"github.com/lodastack/log"
 	m "github.com/lodastack/models"
 )
@@ -47,32 +47,21 @@ func NewWork(c cluster.ClusterInf) *Work {
 	return w
 }
 
-func (w *Work) createDir(dir string) error {
-	err := w.Cluster.CreateDir(dir)
-	if err != nil {
-		log.Errorf("create dir %s fail: %s", dir, err.Error())
-	}
-	return err
-}
-
 func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 	alarmKey := ns + "/" + alarmVersion
-	if err := w.createDir(alarmKey); err != nil {
+	if err := w.Cluster.CreateDir(alarmKey); err != nil {
 		log.Errorf("create alarm %s, %s dir fail", ns, alarmVersion)
 	}
 
 	statusDirKey := alarmKey + "/" + cluster.AlarmStatusPath
-	if err := w.createDir(statusDirKey); err != nil {
+	if err := w.Cluster.CreateDir(statusDirKey); err != nil {
 		log.Errorf("create alarm %s, %s status dir fail", ns, statusDirKey)
 	}
 	return nil
 }
 
-func readHostFromEtcdKey(etcdKey string) string {
-	etcdKeySplit := strings.Split(etcdKey, ":")
-	return etcdKeySplit[len(etcdKeySplit)-1]
-}
-
+// CheckAlarmLoop is the loop to read alarm from loda,
+// create new alarm on cluster and remove the alarm not existed.
 func (w *Work) CheckAlarmLoop() {
 	// wait loda init Loda.NsAlarm finished.
 	for {
@@ -86,7 +75,7 @@ func (w *Work) CheckAlarmLoop() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	// loda update NsAlarm loop.
+	// read and check NsAlarm.
 	for {
 		time.Sleep(interval * time.Second)
 
@@ -98,12 +87,11 @@ func (w *Work) CheckAlarmLoop() {
 	}
 }
 
-// UpdateAlarms init new alarm and delete removed alarm in etcd.
+// UpdateAlarms init new alarm and remove the alarm in loda any more.
 func (w *Work) CheckEtcdAlarms() error {
 	loda.Loda.RLock()
 	defer loda.Loda.RUnlock()
-
-	// delete ns if not exist in loda.
+	// remove ns if not exist in loda.
 	rep, err := w.Cluster.RecursiveGet("")
 	if err != nil {
 		log.Error("read root fail: %s", err.Error())
@@ -111,7 +99,7 @@ func (w *Work) CheckEtcdAlarms() error {
 		for _, nsNode := range rep.Node.Nodes {
 			_ns := cluster.ReadEtcdLastSplit(nsNode.Key)
 			if _, ok := loda.Loda.NsAlarms[_ns]; !ok {
-				nsPath := cluster.EtcdPrefix + "/" + _ns
+				nsPath := cluster.NsAbsPath(_ns)
 				log.Infof("cannot read ns %s on loda, remove it", _ns)
 				if err := w.Cluster.DeleteDir(nsPath); err != nil {
 					log.Errorf("delete ns %s fail: %s", nsPath, err.Error())
@@ -132,36 +120,35 @@ func (w *Work) CheckEtcdAlarms() error {
 				log.Errorf("work set ns %s error: %s, skip this ns", ns, err.Error())
 			}
 		} else {
+			// remove the alarm/host not existed in loda
 			for _, alarmNode := range rep.Node.Nodes {
 				alarmVersion := cluster.ReadEtcdLastSplit(alarmNode.Key)
+				// remove the alarm not existed in loda
 				if _, ok := loda.Loda.NsAlarms[ns][alarmVersion]; !ok {
-					// delete the alarm not in loda
 					log.Infof("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
 					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
 						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
 					}
 				} else {
-					// delete the host not in loda
-					alarmKey := ns + "/" + alarmVersion + "/" + cluster.AlarmStatusPath
-					hostStatusNodes, err := w.Cluster.RecursiveGet(alarmKey)
+					// remove the host not existed in loda
+					alarmStatusKey := cluster.AlarmStatusDir(ns, alarmVersion)
+					hostStatusNodes, err := w.Cluster.RecursiveGet(alarmStatusKey)
 					if err != nil {
-						log.Errorf("read etcd path fail %s", alarmKey)
+						log.Errorf("read etcd path fail %s", alarmStatusKey)
 						continue
 					}
 					for _, hostNode := range hostStatusNodes.Node.Nodes {
 						hostname := cluster.ReadEtcdLastSplit(hostNode.Key)
-						if loda.MachineIp(ns, hostname) != "" {
-							continue
+						if _, ok := loda.MachineIp(ns, hostname); !ok {
+							log.Infof("cannot read ns %s hostname %s on loda, remove it", ns, hostname)
+							statusPath := alarmNode.Key + "/" + cluster.AlarmStatusPath + "/" + hostname
+							hostPath := alarmNode.Key + "/" + cluster.AlarmHostPath + "/" + hostname
+							if err := w.Cluster.DeleteDir(statusPath); err != nil {
+								log.Errorf("delete host %s fail: %s", statusPath, err.Error())
+							}
+							w.Cluster.DeleteDir(hostPath)
 						}
-						log.Infof("cannot read ns %s hostname %s on loda, remove it", ns, hostname)
-						statusPath := alarmNode.Key + "/" + cluster.AlarmStatusPath + "/" + hostname
-						if err := w.Cluster.DeleteDir(statusPath); err != nil {
-							log.Errorf("delete host %s fail: %s", statusPath, err.Error())
-						}
-						hostPath := alarmNode.Key + "/" + cluster.AlarmHostPath + "/" + hostname
-						w.Cluster.DeleteDir(hostPath)
 					}
-
 				}
 			}
 		}
@@ -181,10 +168,10 @@ func (w *Work) CheckEtcdAlarms() error {
 	return nil
 }
 
-func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, receives []string, eventData models.EventData) error {
+// Set the status and log the status changes via sdkLog.
+func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, host, ip, level string, receives []string, eventData models.EventData) error {
 	now := time.Now().Local()
 	alarmLevel, _ := alarmLevelMap[alarm.Level]
-	receiverList := getRecieverInfo(receives)
 	newStatus := models.Status{
 		UpdateTime:   now,
 		CreateTime:   now,
@@ -199,47 +186,27 @@ func (w *Work) setAlarmStatus(ns string, alarm m.Alarm, host, ip, level string, 
 
 		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
-		Reciever: receiverList,
+		Reciever: getRecieverInfo(receives),
 	}
 
-	statusPath := ns + "/" + alarm.Version + "/" + cluster.AlarmStatusPath + "/" + host
-	if rep, err := w.Cluster.RecursiveGet(statusPath); err == nil {
-		if oldStatus, err := models.NewStatusByString(rep.Node.Value); err == nil {
-			if oldStatus.Level == newStatus.Level {
-				newStatus.CreateTime = oldStatus.CreateTime
-			} else {
-				if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, host, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
-					log.Errorf("log status fail: %s", err.Error())
-				}
-			}
-		}
-	} else {
+	// Log a new status if the status now exist.
+
+	// Set the createtime of status by previous if the status is the same as previous.
+	// Otherwise log the status change via sdkLog.
+	if oldStatus, err := w.Status.QueryStatus(ns, alarm.Version, host); err != nil {
 		if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, host, level, receives, newStatus.Value); err != nil {
 			log.Errorf("log status fail: %s", err.Error())
 		}
+	} else {
+		if oldStatus.Level == newStatus.Level {
+			newStatus.CreateTime = oldStatus.CreateTime
+		} else {
+			if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, host, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
+				log.Errorf("log status fail: %s", err.Error())
+			}
+		}
 	}
-	statusString, _ := newStatus.String()
-
-	return w.Cluster.Set(
-		statusPath,
-		statusString,
-		&client.SetOptions{})
-}
-
-// handleEventToHostPath handle event to alarm-host path, and check if the alert block by alert host level.
-func (w *Work) handleEvent(ns, version, host, ip, eventID string, eventData models.EventData, alarm *loda.Alarm, reveives []string) error {
-	if err := send(
-		alarm.AlarmData.Name,
-		alarm.AlarmData.Expression+alarm.AlarmData.Value,
-		alarm.AlarmData.Level,
-		ip,
-		strings.Split(alarm.AlarmData.Alert, ","),
-		reveives,
-		eventData); err != nil {
-		log.Error("work output error:", err.Error())
-		return err
-	}
-	return nil
+	return w.Status.SetStatus(ns, alarm, host, newStatus)
 }
 
 func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) error {
@@ -262,7 +229,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
 		return nil
 	}
-	ip := loda.MachineIp(ns, host)
+	ip, _ := loda.MachineIp(ns, host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
 	reveives := loda.GetGroupUsers(groups)
@@ -271,7 +238,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	}
 
 	// update alarm status
-	if err := w.setAlarmStatus(ns, alarm.AlarmData, host, ip, eventData.Level, reveives, eventData); err != nil {
+	if err := w.setStatusAndLogToSDK(ns, alarm.AlarmData, host, ip, eventData.Level, reveives, eventData); err != nil {
 		log.Errorf("set ns %s alarm %s host %s fail: %s",
 			ns, alarm.AlarmData.Version, host, err.Error())
 	}
@@ -293,11 +260,15 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		return nil
 	}
 
-	// ID format: "time:measurement:tags"
-	// handle event by ns-all
-	eventId := eventData.Time.Format(timeFormat) + ":" + eventData.ID + ":" + host
-	if err := w.handleEvent(ns, alarm.AlarmData.Version, host, ip, eventId, eventData, alarm, reveives); err != nil {
-		log.Errorf("handle event by host path fail: %s", err.Error())
+	if err := send(
+		alarm.AlarmData.Name,
+		alarm.AlarmData.Expression+alarm.AlarmData.Value,
+		alarm.AlarmData.Level,
+		ip,
+		strings.Split(alarm.AlarmData.Alert, ","),
+		reveives,
+		eventData); err != nil {
+		log.Error("handler send event fail: %s", err.Error())
 		return err
 	}
 	return nil

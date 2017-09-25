@@ -53,8 +53,7 @@ func postDataHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	ns := versionSplit[0]
-	err = worker.HandleEvent(ns, alarmversion, eventData)
-	if err != nil {
+	if err = worker.HandleEvent(ns, alarmversion, eventData); err != nil {
 		log.Errorf("Work handle event error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle event error")
 		return

@@ -30,13 +30,15 @@ type Status struct {
 	Msg string
 }
 
-func NewStatusByString(input string) (Status, error) {
-	var status Status
-	err := jsoniter.Unmarshal([]byte(input), &status)
+func NewStatusByString(input string) (status Status, err error) {
+	if err = jsoniter.Unmarshal([]byte(input), &status); err != nil {
+		return
+	}
+
 	loc := time.Now().Location()
 	status.CreateTime, _ = time.ParseInLocation(timeFormat, status.CTime, loc)
 	status.UpdateTime, _ = time.ParseInLocation(timeFormat, status.UTime, loc)
-	return status, err
+	return status, nil
 }
 
 func (s *Status) String() (string, error) {
