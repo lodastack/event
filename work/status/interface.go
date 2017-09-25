@@ -6,6 +6,9 @@ import (
 	"github.com/lodastack/event/models"
 	"github.com/lodastack/event/work/cluster"
 	"github.com/lodastack/log"
+	m "github.com/lodastack/models"
+
+	"github.com/coreos/etcd/client"
 )
 
 const (
@@ -15,8 +18,14 @@ const (
 
 // StatusInf is the package exposed interface.
 type StatusInf interface {
-	// GetStatus return interface to query status by ns/alarm/host/level.
+	// GetStatus return interface to query status by ns/alarm/host/level from local data.
 	GetStatus(ns string) GetStatusInf
+
+	// QueryStatus query status to cluster.
+	QueryStatus(ns, alarmVersion, host string) (models.Status, error)
+
+	// SetStatus set the status to cluster.
+	SetStatus(ns string, alarm m.Alarm, host string, newStatus models.Status) error
 
 	// ClearStatus clear status by ns/alarmVersion/host.
 	ClearStatus(ns, alarmVersion, host string) error
@@ -35,11 +44,28 @@ type Status struct {
 	c cluster.ClusterInf
 }
 
-// GetStatus read the status data and return GetStatusInf.
+// GetStatus read the status data and return GetStatusInf from local data.
 func (s *Status) GetStatus(ns string) GetStatusInf {
 	return &StatusData{
 		data: getNsStatusFromGlobal(NS(ns)),
 	}
+}
+
+// QueryStatus query status to cluster..
+func (s *Status) QueryStatus(ns, alarmVersion, host string) (models.Status, error) {
+	path := cluster.HostStatusKey(ns, alarmVersion, host)
+	rep, err := s.c.RecursiveGet(path)
+	if err != nil {
+		return models.Status{}, err
+	}
+	return models.NewStatusByString(rep.Node.Value)
+}
+
+// SetStatus set the status to cluster.
+func (s *Status) SetStatus(ns string, alarm m.Alarm, host string, newStatus models.Status) error {
+	statusPath := ns + "/" + alarm.Version + "/" + cluster.AlarmStatusPath + "/" + host
+	statusString, _ := newStatus.String()
+	return s.c.Set(statusPath, statusString, &client.SetOptions{})
 }
 
 // ClearStatus clear status by ns/alarmVersion/host.

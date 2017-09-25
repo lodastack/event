@@ -31,3 +31,15 @@ func ReadEtcdLastSplit(etcdKey string) string {
 	etcdKeySplit := strings.Split(etcdKey, "/")
 	return etcdKeySplit[len(etcdKeySplit)-1]
 }
+
+func HostStatusKey(ns, alarmVersion, host string) string {
+	return ns + "/" + alarmVersion + "/" + AlarmStatusPath + "/" + host
+}
+
+func AlarmStatusDir(ns, alarmVersion string) string {
+	return ns + "/" + alarmVersion + "/" + AlarmStatusPath
+}
+
+func NsAbsPath(ns string) string {
+	return EtcdPrefix + "/" + ns
+}
