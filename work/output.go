@@ -37,12 +37,12 @@ func send(alarmName, expression, alertLevel, ip string, alertTypes []string, rec
 		eventData.Ns, host, ip, measurement,
 		eventData.Level, alarmName, expression, recievers, tags,
 		value, eventData.Time)
-	go sentToAlertHandler(alertTypes, alertMsg)
+	go _sentToAlertHandler(alertTypes, alertMsg)
 	return nil
 }
 
 // send the alertMsg to sms/mail/wechat handler.
-func sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
+func _sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
 	alertType = common.RemoveDuplicateAndEmpty(alertType)
 
 	for _, handler := range alertType {

@@ -10,6 +10,7 @@ import (
 	"github.com/lodastack/event/common"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
+	"github.com/lodastack/event/work/block"
 	"github.com/lodastack/event/work/cluster"
 	"github.com/lodastack/event/work/status"
 
@@ -30,10 +31,16 @@ type Work struct {
 
 	// query/set status.
 	Status status.StatusInf
+
+	// get/clear block status
+	Block block.BlockInf
 }
 
 func NewWork(c cluster.ClusterInf) *Work {
-	w := &Work{Cluster: c, Status: status.NewStatus(c)}
+	w := &Work{
+		Cluster: c,
+		Status:  status.NewStatus(c),
+		Block:   block.NewBlock(c)}
 	w.Status.GenGlobalStatus()
 	go func() {
 		c := time.Tick(10 * time.Second)
@@ -186,14 +193,14 @@ func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, host, ip, level st
 
 		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
-		Reciever: getRecieverInfo(receives),
+		Reciever: loda.GetUserInfo(receives),
 	}
 
 	// Log a new status if the status now exist.
 
 	// Set the createtime of status by previous if the status is the same as previous.
 	// Otherwise log the status change via sdkLog.
-	if oldStatus, err := w.Status.QueryStatus(ns, alarm.Version, host); err != nil {
+	if oldStatus, err := w.Status.GetStatusFromCluster(ns, alarm.Version, host); err != nil {
 		if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, host, level, receives, newStatus.Value); err != nil {
 			log.Errorf("log status fail: %s", err.Error())
 		}
@@ -245,7 +252,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 
 	// read and check block/times
 	if eventData.Level == status.OK {
-		w.clearBlock(ns, alarm.AlarmData.Version, host)
+		w.Block.ClearBlock(ns, alarm.AlarmData.Version, host)
 		return send(
 			alarm.AlarmData.Name,
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
@@ -256,7 +263,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 			eventData)
 	}
 
-	if isBlock := w.readBlockStatus(ns, alarm, host); isBlock {
+	if w.Block.IsBlock(ns, alarm, host) {
 		return nil
 	}
 

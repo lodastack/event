@@ -19,10 +19,10 @@ const (
 // StatusInf is the package exposed interface.
 type StatusInf interface {
 	// GetStatus return interface to query status by ns/alarm/host/level from local data.
-	GetStatus(ns string) GetStatusInf
+	GetStatusFromLocal(ns string) GetStatusInf
 
 	// QueryStatus query status to cluster.
-	QueryStatus(ns, alarmVersion, host string) (models.Status, error)
+	GetStatusFromCluster(ns, alarmVersion, host string) (models.Status, error)
 
 	// SetStatus set the status to cluster.
 	SetStatus(ns string, alarm m.Alarm, host string, newStatus models.Status) error
@@ -45,14 +45,14 @@ type Status struct {
 }
 
 // GetStatus read the status data and return GetStatusInf from local data.
-func (s *Status) GetStatus(ns string) GetStatusInf {
+func (s *Status) GetStatusFromLocal(ns string) GetStatusInf {
 	return &StatusData{
 		data: getNsStatusFromGlobal(NS(ns)),
 	}
 }
 
 // QueryStatus query status to cluster..
-func (s *Status) QueryStatus(ns, alarmVersion, host string) (models.Status, error) {
+func (s *Status) GetStatusFromCluster(ns, alarmVersion, host string) (models.Status, error) {
 	path := cluster.HostStatusKey(ns, alarmVersion, host)
 	rep, err := s.c.RecursiveGet(path)
 	if err != nil {
