@@ -67,9 +67,9 @@ func (b *Block) IsBlock(ns string, alarm *loda.Alarm, host string) bool {
 	return isBlock
 }
 
-// read block status, return the next block status/times and if the ns/alarmVersion/host block or not.
-// block status, block times and their TTL will operate by different way such as noBlock/addBlock/alreadyAlertWhileBlock.
-// timesTTL is statusTTL + alarm check interval, because event happen not exactly influence by net/machine and other factors.
+// Read block status, return the next block status/times and if the ns/alarmVersion/host should be blocked or not.
+// Block status, block times and their TTL will be treated in different way such as noBlock/addBlock/alreadyAlertWhileBlock.
+// TimesTTL is statusTTL + alarm check interval, because event would happen not exactly which influence by net/machine and the other factors.
 //
 // noBlock:                has no block status and times, not block this event,
 //                         set times as 1 and set status as alreadyAlertWhileBlock.
