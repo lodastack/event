@@ -110,12 +110,12 @@ func (s *Status) GenGlobalStatus() error {
 		return err
 	}
 
-	if err := s.genAlarmStatusToNs(&data); err != nil {
+	if err := s.genAlarmStatusForNs(&data); err != nil {
 		log.Error("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
 
-	if err := s.genHostStatusToAlarm(&data); err != nil {
+	if err := s.genHostStatusForAlarm(&data); err != nil {
 		log.Error("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
@@ -138,7 +138,7 @@ func (s *Status) genNsStatus(status *NsStatus) error {
 	return nil
 }
 
-func (s *Status) genAlarmStatusToNs(status *NsStatus) error {
+func (s *Status) genAlarmStatusForNs(status *NsStatus) error {
 	for ns := range *status {
 		rep, err := s.c.RecursiveGet(string(ns))
 		if err != nil {
@@ -154,7 +154,7 @@ func (s *Status) genAlarmStatusToNs(status *NsStatus) error {
 	return nil
 }
 
-func (s *Status) genHostStatusToAlarm(status *NsStatus) error {
+func (s *Status) genHostStatusForAlarm(status *NsStatus) error {
 	for ns := range *status {
 		for alarmVersion := range (*status)[ns] {
 			rep, err := s.c.RecursiveGet(string(ns) + "/" + string(alarmVersion) + "/" + cluster.AlarmStatusPath)

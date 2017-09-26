@@ -113,7 +113,7 @@ func GetUserMobile(username []string) []string {
 }
 
 // GetUserInfo return user info at format username(mobile).
-// e.g: return ianwoolf(130xxxxxxxx) for ianwoolf input.
+// e.g: return loda(mobile) for get loda user info.
 func GetUserInfo(users []string) []string {
 	receiverInfoSplit := make([]string, len(users))
 	receiverInfo, err := GetUsers(users...)
