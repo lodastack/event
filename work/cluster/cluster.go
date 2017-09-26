@@ -36,10 +36,18 @@ func HostStatusKey(ns, alarmVersion, host string) string {
 	return ns + "/" + alarmVersion + "/" + AlarmStatusPath + "/" + host
 }
 
+func HostKey(ns, alarmVersion, host string) string {
+	return ns + "/" + alarmVersion + "/" + AlarmHostPath + "/" + host
+}
+
 func AlarmStatusDir(ns, alarmVersion string) string {
 	return ns + "/" + alarmVersion + "/" + AlarmStatusPath
 }
 
 func NsAbsPath(ns string) string {
 	return EtcdPrefix + "/" + ns
+}
+
+func AbsPath(path string) string {
+	return EtcdPrefix + "/" + path
 }

@@ -28,7 +28,7 @@ func init() {
 	go clearUserMap()
 }
 
-func GetUsersFromServer(usernames []string) (map[string]User, error) {
+func getUsersFromServer(usernames []string) (map[string]User, error) {
 	var resUser ResUser
 	url := fmt.Sprintf("%s/api/v1/event/user/list?usernames=%s", config.GetConfig().Reg.Link, strings.Join(usernames, ","))
 
@@ -81,9 +81,9 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 
 	if i != 0 {
 		userMu.Lock()
-		userMapFromServer, err := GetUsersFromServer(usernameUnknown)
+		userMapFromServer, err := getUsersFromServer(usernameUnknown)
 		if err != nil || len(usernameUnknown) != len(userMapFromServer) {
-			log.Errorf("GetUsersFromServer error happen or response unmatch with Request, err: %v, request: %v, resp: %v",
+			log.Errorf("getUsersFromServer error happen or response unmatch with Request, err: %v, request: %v, resp: %v",
 				err, usernameUnknown, userMapFromServer)
 		}
 		for username, user := range userMapFromServer {
@@ -96,6 +96,7 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	return userMap, nil
 }
 
+// GetUserMobile return mobile list for users.
 func GetUserMobile(username []string) []string {
 	mobiles := make([]string, len(username))
 	var i int
@@ -109,4 +110,20 @@ func GetUserMobile(username []string) []string {
 		i++
 	}
 	return mobiles[:i]
+}
+
+// GetUserInfo return user info at format username(mobile).
+// e.g: return ianwoolf(130xxxxxxxx) for ianwoolf input.
+func GetUserInfo(users []string) []string {
+	receiverInfoSplit := make([]string, len(users))
+	receiverInfo, err := GetUsers(users...)
+	if err != nil {
+		log.Errorf("GetUsers fail: %s", err.Error())
+	}
+	var i int
+	for _, receiver := range receiverInfo {
+		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
+		i++
+	}
+	return receiverInfoSplit[:i]
 }

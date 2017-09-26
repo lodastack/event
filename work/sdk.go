@@ -10,24 +10,9 @@ import (
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
-	"github.com/lodastack/log"
 	m "github.com/lodastack/models"
 	"github.com/lodastack/sdk-go"
 )
-
-func getRecieverInfo(revievers []string) []string {
-	receiverInfoSplit := make([]string, len(revievers))
-	receiverInfo, err := loda.GetUsers(revievers...)
-	if err != nil {
-		log.Errorf("GetUsers fail: %s", err.Error())
-	}
-	var i int
-	for _, receiver := range receiverInfo {
-		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
-		i++
-	}
-	return receiverInfoSplit[:i]
-}
 
 func sendToSDK(ms []m.Metric) error {
 	data, err := json.Marshal(ms)
@@ -65,7 +50,7 @@ var (
 // NOTICE: newMetric not set Metric.Name.
 func (s *SdkLog) newMetric(name, ns, measurement, host, level string, receives []string, value float64) []m.Metric {
 	ms := make([]m.Metric, 1)
-	receiverList := getRecieverInfo(receives)
+	receiverList := loda.GetUserInfo(receives)
 
 	ms[0] = m.Metric{
 		Timestamp: time.Now().Unix(),

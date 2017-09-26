@@ -76,7 +76,7 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	level := params.Get("level")
 	status := params.Get("status")
 
-	statusData := worker.Status.GetStatus(ns)
+	statusData := worker.Status.GetStatusFromLocal(ns)
 	if err != nil {
 		log.Errorf("Work handle status error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle status error")
