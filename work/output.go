@@ -19,7 +19,7 @@ func init() {
 	}
 }
 
-func send(alarmName, expression, alertLevel, ip string, alertTypes []string, recievers []string, eventData models.EventData) error {
+func send(alarmName, alarmLevel, expression, alertLevel, ip string, alertTypes []string, recievers []string, eventData models.EventData) error {
 	host, measurement := (*eventData.Data.Series[0]).Tags["host"], (*eventData.Data.Series[0]).Name
 	tags := (*eventData.Data.Series[0]).Tags
 	value := (*eventData.Data.Series[0]).Values[0][1].(float64)
@@ -28,7 +28,7 @@ func send(alarmName, expression, alertLevel, ip string, alertTypes []string, rec
 		levelMsg = levelMap["unknow"]
 	}
 
-	if err := sdkLog.Event(alarmName, eventData.Ns, measurement, host,
+	if err := sdkLog.Event(alarmName, eventData.Ns, measurement, alarmLevel, host,
 		levelMsg, recievers, value); err != nil {
 		log.Errorf("log alarm fail, error: %s, data: %+v", err.Error())
 	}
