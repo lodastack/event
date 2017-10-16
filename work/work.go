@@ -201,14 +201,14 @@ func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, host, ip, level st
 	// Set the createtime of status by previous if the status is the same as previous.
 	// Otherwise log the status change via sdkLog.
 	if oldStatus, err := w.Status.GetStatusFromCluster(ns, alarm.Version, host); err != nil {
-		if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, host, level, receives, newStatus.Value); err != nil {
+		if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, alarm.Level, host, level, receives, newStatus.Value); err != nil {
 			log.Errorf("log status fail: %s", err.Error())
 		}
 	} else {
 		if oldStatus.Level == newStatus.Level {
 			newStatus.CreateTime = oldStatus.CreateTime
 		} else {
-			if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, host, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
+			if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, alarm.Level, host, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
 				log.Errorf("log status fail: %s", err.Error())
 			}
 		}
@@ -255,6 +255,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		w.Block.ClearBlock(ns, alarm.AlarmData.Version, host)
 		return send(
 			alarm.AlarmData.Name,
+			alarm.AlarmData.Level,
 			alarm.AlarmData.Expression+alarm.AlarmData.Value,
 			status.OK,
 			ip,
@@ -269,6 +270,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 
 	if err := send(
 		alarm.AlarmData.Name,
+		alarm.AlarmData.Level,
 		alarm.AlarmData.Expression+alarm.AlarmData.Value,
 		alarm.AlarmData.Level,
 		ip,

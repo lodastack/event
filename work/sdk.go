@@ -9,7 +9,6 @@ import (
 
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/loda"
-	"github.com/lodastack/event/models"
 	m "github.com/lodastack/models"
 	"github.com/lodastack/sdk-go"
 )
@@ -22,23 +21,10 @@ func sendToSDK(ms []m.Metric) error {
 	return sdk.Post(config.GetConfig().Com.EventLogNs, data)
 }
 
-type sdkLogFunc interface {
-	// log every alarm when output.
-	LogAlarm(name, ns, measurement, host, level string, receives []string, value float64) error
-
-	// log new status.
-	LogNewStatus(alertMsg models.AlertMsg, level string, receives []string) error
-
-	// log status changed.
-	LogStatusChange(alertMsg models.AlertMsg, level string, receives []string, statusStartTime time.Time) error
-}
-
 // SdkLog log the event/status via sdk.
 type SdkLog struct {
-	sdkLogFunc
 }
 
-// global SdkLog obj
 var (
 	sdkLog SdkLog
 
@@ -48,7 +34,7 @@ var (
 
 // newMetric make []m.Metric with the param.
 // NOTICE: newMetric not set Metric.Name.
-func (s *SdkLog) newMetric(name, ns, measurement, host, level string, receives []string, value float64) []m.Metric {
+func (s *SdkLog) newMetric(name, ns, measurement, alarmLevel, host, status string, receives []string, value float64) []m.Metric {
 	ms := make([]m.Metric, 1)
 	receiverList := loda.GetUserInfo(receives)
 
@@ -58,8 +44,9 @@ func (s *SdkLog) newMetric(name, ns, measurement, host, level string, receives [
 			"alertname":   name,
 			"host":        host,
 			"measurement": measurement,
+			"level":       alarmLevel,
 			"ns":          ns,
-			"level":       level,
+			"status":      status,
 			"to":          strings.Join(receiverList, "\\,")},
 		Value: fmt.Sprintf("%.2f", value),
 	}
@@ -82,23 +69,23 @@ func (s *SdkLog) setLastTime(ms []m.Metric, lastTimeStr string) {
 }
 
 // Event log the event via sdk.(v1) It is used when output a alarm.
-func (s *SdkLog) Event(name, ns, measurement, host, level string, receives []string, value float64) error {
-	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
+func (s *SdkLog) Event(name, ns, measurement, alarmLevel, host, level string, receives []string, value float64) error {
+	ms := s.newMetric(name, ns, measurement, alarmLevel, host, level, receives, value)
 	s.setNameToMetric(ms, eventMetricName)
 	return sendToSDK(ms)
 }
 
 // NewStatus log a new status via sdkl.(v2)  maybe the event is the first alarm of this ns/alarm/host.
-func (s *SdkLog) NewStatus(name, ns, measurement, host, level string, receives []string, value float64) error {
-	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
+func (s *SdkLog) NewStatus(name, ns, measurement, alarmLevel, host, status string, receives []string, value float64) error {
+	ms := s.newMetric(name, ns, measurement, alarmLevel, host, status, receives, value)
 	s.setNameToMetric(ms, statusMetricName)
 	s.setLastTime(ms, "0")
 	return sendToSDK(ms)
 }
 
 // StatusChange log a status change event via sdk.
-func (s *SdkLog) StatusChange(name, ns, measurement, host, level string, receives []string, value float64, statusStartTime time.Time) error {
-	ms := s.newMetric(name, ns, measurement, host, level, receives, value)
+func (s *SdkLog) StatusChange(name, ns, measurement, alarmLevel, host, status string, receives []string, value float64, statusStartTime time.Time) error {
+	ms := s.newMetric(name, ns, measurement, alarmLevel, host, status, receives, value)
 	s.setNameToMetric(ms, statusMetricName)
 	lastTime := strconv.Itoa(int(time.Now().Sub(statusStartTime) / time.Second))
 	s.setLastTime(ms, lastTime)
