@@ -56,12 +56,12 @@ func NewWork(c cluster.ClusterInf) *Work {
 
 func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 	alarmKey := ns + "/" + alarmVersion
-	if err := w.Cluster.CreateDir(alarmKey); err != nil {
+	if err := w.Cluster.Mkdir(alarmKey); err != nil {
 		log.Errorf("create alarm %s, %s dir fail", ns, alarmVersion)
 	}
 
 	statusDirKey := alarmKey + "/" + cluster.AlarmStatusPath
-	if err := w.Cluster.CreateDir(statusDirKey); err != nil {
+	if err := w.Cluster.Mkdir(statusDirKey); err != nil {
 		log.Errorf("create alarm %s, %s status dir fail", ns, statusDirKey)
 	}
 	return nil
@@ -108,7 +108,7 @@ func (w *Work) CheckEtcdAlarms() error {
 			if _, ok := loda.Loda.NsAlarms[_ns]; !ok {
 				nsPath := cluster.NsAbsPath(_ns)
 				log.Infof("cannot read ns %s on loda, remove it", _ns)
-				if err := w.Cluster.DeleteDir(nsPath); err != nil {
+				if err := w.Cluster.RemoveDir(nsPath); err != nil {
 					log.Errorf("delete ns %s fail: %s", nsPath, err.Error())
 				}
 			}
@@ -123,7 +123,7 @@ func (w *Work) CheckEtcdAlarms() error {
 				continue
 			}
 			log.Infof("get ns %s fail(%s) set it", ns, err.Error())
-			if err := w.Cluster.CreateDir(ns); err != nil {
+			if err := w.Cluster.Mkdir(ns); err != nil {
 				log.Errorf("work set ns %s error: %s, skip this ns", ns, err.Error())
 			}
 		} else {
@@ -133,7 +133,7 @@ func (w *Work) CheckEtcdAlarms() error {
 				// remove the alarm not existed in loda
 				if _, ok := loda.Loda.NsAlarms[ns][alarmVersion]; !ok {
 					log.Infof("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
-					if err := w.Cluster.DeleteDir(alarmNode.Key); err != nil {
+					if err := w.Cluster.RemoveDir(alarmNode.Key); err != nil {
 						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
 					}
 				} else {
@@ -150,10 +150,10 @@ func (w *Work) CheckEtcdAlarms() error {
 							log.Infof("cannot read ns %s hostname %s on loda, remove it", ns, hostname)
 							statusPath := alarmNode.Key + "/" + cluster.AlarmStatusPath + "/" + hostname
 							hostPath := alarmNode.Key + "/" + cluster.AlarmHostPath + "/" + hostname
-							if err := w.Cluster.DeleteDir(statusPath); err != nil {
+							if err := w.Cluster.RemoveDir(statusPath); err != nil {
 								log.Errorf("delete host %s fail: %s", statusPath, err.Error())
 							}
-							w.Cluster.DeleteDir(hostPath)
+							w.Cluster.RemoveDir(hostPath)
 						}
 					}
 				}
