@@ -46,11 +46,11 @@ func init() {
 }
 
 func main() {
-	fmt.Println("build via golang version ", runtime.Version())
+	fmt.Printf("build via golang version: %s\n", runtime.Version())
 	c, err := cluster.NewCluster(config.GetConfig().Etcd.Addr, config.GetConfig().Etcd.Endpoints,
 		config.GetConfig().Etcd.Auth, config.GetConfig().Etcd.Username, config.GetConfig().Etcd.Password, 5, 5)
 	if err != nil {
-		fmt.Println("main error", err)
+		fmt.Printf("NewCluster error: %s\n", err.Error())
 		return
 	}
 	go loda.ReadLoop()

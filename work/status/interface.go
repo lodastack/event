@@ -88,10 +88,10 @@ func (s *Status) ClearStatus(ns, alarmVersion, host string) error {
 
 			statusStatusPath := cluster.EtcdPrefix + "/" + ns + "/" + string(_alarmVersion) + "/" + cluster.AlarmStatusPath + "/" + string(_host)
 			hostStatusPath := cluster.EtcdPrefix + "/" + ns + "/" + string(_alarmVersion) + "/" + cluster.AlarmHostPath + "/" + string(_host)
-			if err := s.c.DeleteDir(statusStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
+			if err := s.c.RemoveDir(statusStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
 				log.Errorf("del status dir %s fail: %s", statusStatusPath, err.Error())
 			}
-			if err := s.c.DeleteDir(hostStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
+			if err := s.c.RemoveDir(hostStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
 				if !strings.Contains(err.Error(), "Key not found") {
 					log.Errorf("del host dir %s fail: %s", hostStatusPath, err.Error())
 				}
