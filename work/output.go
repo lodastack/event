@@ -52,7 +52,7 @@ func _sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
 			continue
 		}
 		if err := handlerFunc(alertMsg); err != nil {
-			log.Error("output %s fail: %s", handler, err.Error())
+			log.Errorf("output %s fail: %s", handler, err.Error())
 			return err
 		}
 	}
