@@ -77,6 +77,7 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 			userMap[username] = user
 		}
 	}
+	usernameUnknown = usernameUnknown[:i]
 	userMu.RUnlock()
 
 	if i != 0 {

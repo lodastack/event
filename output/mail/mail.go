@@ -107,12 +107,6 @@ func catchPanic(err *error, functionName string) {
 		}
 	} else if err != nil && *err != nil {
 		log.Errorf("sand mail fail, %s : ERROR : %v\n", functionName, *err)
-
-		// Capture the stack trace
-		buf := make([]byte, 10000)
-		runtime.Stack(buf, false)
-
-		log.Errorf("sand mail fail, %s : Stack Trace : %s", functionName, string(buf))
 	}
 }
 
