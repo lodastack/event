@@ -30,10 +30,10 @@ type Work struct {
 	Cluster cluster.ClusterInf
 
 	// query/set status.
-	Status status.StatusInf
+	Status status.Inf
 
 	// get/clear block status
-	Block block.BlockInf
+	Block block.Inf
 }
 
 func NewWork(c cluster.ClusterInf) *Work {
@@ -72,9 +72,9 @@ func (w *Work) initAlarmDir(ns, alarmVersion string) error {
 func (w *Work) CheckAlarmLoop() {
 	// wait loda init Loda.NsAlarm finished.
 	for {
-		loda.Loda.RLock()
-		alarmNum := len(loda.Loda.NsAlarms)
-		loda.Loda.RUnlock()
+		loda.Alarms.RLock()
+		alarmNum := len(loda.Alarms.NsAlarms)
+		loda.Alarms.RUnlock()
 		if alarmNum != 0 {
 			log.Info("loda resource init finished.")
 			break
@@ -94,18 +94,18 @@ func (w *Work) CheckAlarmLoop() {
 	}
 }
 
-// UpdateAlarms init new alarm and remove the alarm in loda any more.
+// CheckEtcdAlarms init new alarm and remove the alarm in loda any more.
 func (w *Work) CheckEtcdAlarms() error {
-	loda.Loda.RLock()
-	defer loda.Loda.RUnlock()
+	loda.Alarms.RLock()
+	defer loda.Alarms.RUnlock()
 	// remove ns if not exist in loda.
 	rep, err := w.Cluster.RecursiveGet("")
 	if err != nil {
-		log.Error("read root fail: %s", err.Error())
+		log.Errorf("read root fail: %s", err.Error())
 	} else {
 		for _, nsNode := range rep.Node.Nodes {
 			_ns := cluster.ReadEtcdLastSplit(nsNode.Key)
-			if _, ok := loda.Loda.NsAlarms[_ns]; !ok {
+			if _, ok := loda.Alarms.NsAlarms[_ns]; !ok {
 				nsPath := cluster.NsAbsPath(_ns)
 				log.Infof("cannot read ns %s on loda, remove it", _ns)
 				if err := w.Cluster.RemoveDir(nsPath); err != nil {
@@ -116,7 +116,7 @@ func (w *Work) CheckEtcdAlarms() error {
 	}
 
 	// check the ns/alarm/host on etcd.
-	for ns, alarms := range loda.Loda.NsAlarms {
+	for ns, alarms := range loda.Alarms.NsAlarms {
 		if rep, err := w.Cluster.RecursiveGet(ns); err != nil {
 			// create ns dir if not exist.
 			if len(alarms) == 0 {
@@ -131,7 +131,7 @@ func (w *Work) CheckEtcdAlarms() error {
 			for _, alarmNode := range rep.Node.Nodes {
 				alarmVersion := cluster.ReadEtcdLastSplit(alarmNode.Key)
 				// remove the alarm not existed in loda
-				if _, ok := loda.Loda.NsAlarms[ns][alarmVersion]; !ok {
+				if _, ok := loda.Alarms.NsAlarms[ns][alarmVersion]; !ok {
 					log.Infof("Read ns %s alarm %s fail, delete it", ns, alarmVersion)
 					if err := w.Cluster.RemoveDir(alarmNode.Key); err != nil {
 						log.Errorf("delete alarm path %s fail: %s", alarmNode.Key, err.Error())
@@ -146,7 +146,7 @@ func (w *Work) CheckEtcdAlarms() error {
 					}
 					for _, hostNode := range hostStatusNodes.Node.Nodes {
 						hostname := cluster.ReadEtcdLastSplit(hostNode.Key)
-						if _, ok := loda.MachineIp(ns, hostname); !ok {
+						if _, ok := loda.MachineIP(ns, hostname); !ok {
 							log.Infof("cannot read ns %s hostname %s on loda, remove it", ns, hostname)
 							statusPath := alarmNode.Key + "/" + cluster.AlarmStatusPath + "/" + hostname
 							hostPath := alarmNode.Key + "/" + cluster.AlarmHostPath + "/" + hostname
@@ -217,9 +217,9 @@ func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, host, ip, level st
 }
 
 func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) error {
-	loda.Loda.RLock()
-	alarm, ok := loda.Loda.NsAlarms[ns][alarmversion]
-	loda.Loda.RUnlock()
+	loda.Alarms.RLock()
+	alarm, ok := loda.Alarms.NsAlarms[ns][alarmversion]
+	loda.Alarms.RUnlock()
 	if !ok {
 		log.Errorf("read ns %s alarm %s alarm data error", ns, alarmversion)
 		return errors.New("event process error: not have alarm data")
@@ -232,11 +232,11 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Debug("event data has no host, maybe cluster alarm.")
 	}
 
-	if loda.IsMachineOffline(ns, host) {
+	if loda.IsOfflineMachine(ns, host) {
 		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
 		return nil
 	}
-	ip, _ := loda.MachineIp(ns, host)
+	ip, _ := loda.MachineIP(ns, host)
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
 	reveives := loda.GetGroupUsers(groups)
@@ -277,7 +277,7 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		strings.Split(alarm.AlarmData.Alert, ","),
 		reveives,
 		eventData); err != nil {
-		log.Error("handler send event fail: %s", err.Error())
+		log.Errorf("handler send event fail: %s", err.Error())
 		return err
 	}
 	return nil

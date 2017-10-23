@@ -7,50 +7,21 @@ import (
 	"sync"
 	"time"
 
-	// "github.com/lodastack/event/common"
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/requests"
 
 	"github.com/lodastack/log"
 )
 
-type User struct {
-	Username string `json:"username"`
-	Mobile   string `json:"mobile"`
-}
-
-type ResUser struct {
-	HttpStatus int             `json:"httpstatus"`
-	Data       map[string]User `json:"data"`
-}
+var (
+	// UserMap save user infomation.
+	UserMap = map[string]User{}
+	userMu  sync.RWMutex
+)
 
 func init() {
 	go clearUserMap()
 }
-
-func getUsersFromServer(usernames []string) (map[string]User, error) {
-	var resUser ResUser
-	url := fmt.Sprintf("%s/api/v1/event/user/list?usernames=%s", config.GetConfig().Reg.Link, strings.Join(usernames, ","))
-
-	resp, err := requests.Get(url)
-	if err != nil {
-		log.Errorf("get group error: %s", err.Error())
-		return nil, err
-	}
-
-	if resp.Status != 200 {
-		return nil, fmt.Errorf("http status code: %d", resp.Status)
-	}
-	err = json.Unmarshal(resp.Body, &resUser)
-	if err != nil {
-		log.Errorf("get group error: %s", err.Error())
-		return nil, err
-	}
-	return resUser.Data, nil
-}
-
-var userMu sync.RWMutex
-var UserMap map[string]User = map[string]User{}
 
 func clearUserMap() {
 	c := time.Tick(1 * time.Minute)
@@ -64,7 +35,40 @@ func clearUserMap() {
 	}
 }
 
-func GetUsers(usernames ...string) (map[string]User, error) {
+// GetUserMobile return mobile list for users.
+func GetUserMobile(username []string) []string {
+	mobiles := make([]string, len(username))
+	var i int
+
+	userMap, _ := getUsers(username...)
+	for _, user := range userMap {
+		if user.Mobile == "" {
+			continue
+		}
+		mobiles[i] = user.Mobile
+		i++
+	}
+	return mobiles[:i]
+}
+
+// GetUserInfo return user info at format username(mobile).
+// e.g: return user(mobile) for get user info to notify.
+func GetUserInfo(users []string) []string {
+	receiverInfoSplit := make([]string, len(users))
+	receiverInfo, err := getUsers(users...)
+	if err != nil {
+		log.Errorf("GetUsers fail: %s", err.Error())
+	}
+	var i int
+	for _, receiver := range receiverInfo {
+		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
+		i++
+	}
+	return receiverInfoSplit[:i]
+}
+
+// getUsers return user information list of usernames.
+func getUsers(usernames ...string) (map[string]User, error) {
 	userMap := make(map[string]User, len(usernames))
 	userMu.RLock()
 	usernameUnknown := make([]string, len(usernames))
@@ -97,34 +101,35 @@ func GetUsers(usernames ...string) (map[string]User, error) {
 	return userMap, nil
 }
 
-// GetUserMobile return mobile list for users.
-func GetUserMobile(username []string) []string {
-	mobiles := make([]string, len(username))
-	var i int
-
-	userMap, _ := GetUsers(username...)
-	for _, user := range userMap {
-		if user.Mobile == "" {
-			continue
-		}
-		mobiles[i] = user.Mobile
-		i++
-	}
-	return mobiles[:i]
+// User define the property the user should have.
+type User struct {
+	Username string `json:"username"`
+	Mobile   string `json:"mobile"`
 }
 
-// GetUserInfo return user info at format username(mobile).
-// e.g: return loda(mobile) for get loda user info.
-func GetUserInfo(users []string) []string {
-	receiverInfoSplit := make([]string, len(users))
-	receiverInfo, err := GetUsers(users...)
+// RespUser is response from regsitry to query user.
+type respUser struct {
+	HTTPStatus int             `json:"httpstatus"`
+	Data       map[string]User `json:"data"`
+}
+
+func getUsersFromServer(usernames []string) (map[string]User, error) {
+	var respUser respUser
+	url := fmt.Sprintf("%s/api/v1/event/user/list?usernames=%s", config.GetConfig().Reg.Link, strings.Join(usernames, ","))
+
+	resp, err := requests.Get(url)
 	if err != nil {
-		log.Errorf("GetUsers fail: %s", err.Error())
+		log.Errorf("get group error: %s", err.Error())
+		return nil, err
 	}
-	var i int
-	for _, receiver := range receiverInfo {
-		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
-		i++
+
+	if resp.Status != 200 {
+		return nil, fmt.Errorf("http status code: %d", resp.Status)
 	}
-	return receiverInfoSplit[:i]
+	err = json.Unmarshal(resp.Body, &respUser)
+	if err != nil {
+		log.Errorf("get group error: %s", err.Error())
+		return nil, err
+	}
+	return respUser.Data, nil
 }
