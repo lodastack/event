@@ -11,6 +11,28 @@ import (
 	"github.com/lodastack/log"
 )
 
+var (
+	lodaDefault = "loda-defaultuser"
+)
+
+// GetGroupUsers return users of the groups.
+func GetGroupUsers(groups []string) []string {
+	recievers := make([]string, 0)
+	for _, gname := range groups {
+		users, err := getUserOfGroup(gname)
+		if err != nil {
+			continue
+		}
+		recievers = append(recievers, users...)
+	}
+	recievers = common.RemoveDuplicateAndEmpty(recievers)
+	if len(recievers) == 0 {
+		return nil
+	}
+	return recievers
+}
+
+// Group define the propertys a group should have.
 type Group struct {
 	GName    string   `json:"gname"`
 	Managers []string `json:"managers"`
@@ -18,17 +40,15 @@ type Group struct {
 	Items    []string `json:"items"`
 }
 
-type ResGroup struct {
-	HttpStatus int   `json:"httpstatus"`
+// responseGroup is the respose of get group from registry.
+type responseGroup struct {
+	HTTPStatus int   `json:"httpstatus"`
 	Data       Group `json:"data"`
 }
 
-var (
-	lodaDefault = "loda-defaultuser"
-)
-
-func GetUserByGroup(gname string) ([]string, error) {
-	var resGroup ResGroup
+// getUserByGroup return the user list of the groupname by query regsitry.
+func getUserOfGroup(gname string) ([]string, error) {
+	var respGroup responseGroup
 	var users []string
 	url := fmt.Sprintf("%s/api/v1/event/group?gname=%s", config.GetConfig().Reg.Link, gname)
 
@@ -41,13 +61,13 @@ func GetUserByGroup(gname string) ([]string, error) {
 	if resp.Status != 200 {
 		return users, fmt.Errorf("http status code: %d", resp.Status)
 	}
-	err = json.Unmarshal(resp.Body, &resGroup)
+	err = json.Unmarshal(resp.Body, &respGroup)
 	if err != nil {
 		log.Errorf("get group error: %s", err.Error())
 		return users, err
 	}
-	users = append(users, resGroup.Data.Managers...)
-	users = append(users, resGroup.Data.Members...)
+	users = append(users, respGroup.Data.Managers...)
+	users = append(users, respGroup.Data.Members...)
 	users = common.RemoveDuplicateAndEmpty(users)
 
 	if i, ok := common.ContainString(users, lodaDefault); ok {
@@ -55,21 +75,4 @@ func GetUserByGroup(gname string) ([]string, error) {
 	}
 
 	return users[:], nil
-}
-
-// GetGroupUsers return users of the groups.
-func GetGroupUsers(groups []string) []string {
-	recievers := make([]string, 0)
-	for _, gname := range groups {
-		users, err := GetUserByGroup(gname)
-		if err != nil {
-			continue
-		}
-		recievers = append(recievers, users...)
-	}
-	recievers = common.RemoveDuplicateAndEmpty(recievers)
-	if len(recievers) == 0 {
-		return nil
-	}
-	return recievers
 }

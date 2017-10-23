@@ -17,7 +17,7 @@ type (
 	NsStatus    map[NS]AlarmStatus
 )
 
-var statusData NsStatus = make(NsStatus)
+var statusData = make(NsStatus)
 var mu sync.RWMutex
 
 func getNsStatusFromGlobal(ns NS) NsStatus {

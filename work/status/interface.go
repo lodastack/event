@@ -16,8 +16,8 @@ const (
 	OK = "OK"
 )
 
-// StatusInf is the package exposed interface.
-type StatusInf interface {
+// Inf is the package exposed interface.
+type Inf interface {
 	// GetStatus return interface to query status by ns/alarm/host/level from local data.
 	GetStatusFromLocal(ns string) GetStatusInf
 
@@ -35,7 +35,7 @@ type StatusInf interface {
 }
 
 // NewStatus return StatusInf.
-func NewStatus(c cluster.ClusterInf) StatusInf {
+func NewStatus(c cluster.ClusterInf) Inf {
 	return &Status{c: c}
 }
 
@@ -44,14 +44,14 @@ type Status struct {
 	c cluster.ClusterInf
 }
 
-// GetStatus read the status data and return GetStatusInf from local data.
+// GetStatusFromLocal read the status data and return GetStatusInf from local data.
 func (s *Status) GetStatusFromLocal(ns string) GetStatusInf {
 	return &StatusData{
 		data: getNsStatusFromGlobal(NS(ns)),
 	}
 }
 
-// QueryStatus query status to cluster..
+// GetStatusFromCluster query status to cluster..
 func (s *Status) GetStatusFromCluster(ns, alarmVersion, host string) (models.Status, error) {
 	path := cluster.HostStatusKey(ns, alarmVersion, host)
 	rep, err := s.c.RecursiveGet(path)
@@ -106,17 +106,17 @@ func (s *Status) ClearStatus(ns, alarmVersion, host string) error {
 func (s *Status) GenGlobalStatus() error {
 	data := make(NsStatus)
 	if err := s.genNsStatus(&data); err != nil {
-		log.Error("HandleStatus get ns fail: %s", err.Error())
+		log.Errorf("HandleStatus get ns fail: %s", err.Error())
 		return err
 	}
 
 	if err := s.genAlarmStatusForNs(&data); err != nil {
-		log.Error("HandleStatus get alarm fail: %s", err.Error())
+		log.Errorf("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
 
 	if err := s.genHostStatusForAlarm(&data); err != nil {
-		log.Error("HandleStatus get alarm fail: %s", err.Error())
+		log.Errorf("HandleStatus get alarm fail: %s", err.Error())
 		return err
 	}
 	mu.Lock()

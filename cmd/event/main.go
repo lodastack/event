@@ -53,7 +53,7 @@ func main() {
 		fmt.Printf("NewCluster error: %s\n", err.Error())
 		return
 	}
-	go loda.ReadLoop()
+	go loda.UpdateAlarmsFromLoda()
 	w := work.NewWork(c)
 	time.Sleep(500 * time.Millisecond) // TODO
 	go w.CheckAlarmLoop()

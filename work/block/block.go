@@ -26,7 +26,7 @@ const (
 	alreadyAlertWhileBlock int = 2
 )
 
-type BlockInf interface {
+type Inf interface {
 	// ClearBlock status/times by ns/alarmVersion/host.
 	ClearBlock(ns, version, host string) error
 
@@ -38,7 +38,7 @@ type Block struct {
 	c cluster.ClusterInf
 }
 
-func NewBlock(c cluster.ClusterInf) BlockInf {
+func NewBlock(c cluster.ClusterInf) Inf {
 	return &Block{c: c}
 }
 

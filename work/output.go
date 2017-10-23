@@ -30,7 +30,7 @@ func send(alarmName, alarmLevel, expression, alertLevel, ip string, alertTypes [
 
 	if err := sdkLog.Event(alarmName, eventData.Ns, measurement, alarmLevel, host,
 		levelMsg, recievers, value); err != nil {
-		log.Errorf("log alarm fail, error: %s, data: %+v", err.Error())
+		log.Errorf("log alarm fail, error: %s, ns: %s, alert: %s", err.Error(), eventData.Ns, alarmName)
 	}
 
 	alertMsg := models.NewAlertMsg(
@@ -48,7 +48,7 @@ func _sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
 	for _, handler := range alertType {
 		handlerFunc, ok := o.Handlers[handler]
 		if !ok {
-			log.Error("Unknow alert type %s.", handler)
+			log.Errorf("Unknow alert type %s.", handler)
 			continue
 		}
 		if err := handlerFunc(alertMsg); err != nil {
