@@ -1,10 +1,10 @@
-package status
+package models
 
 import (
 	"sync"
 	"time"
 
-	"github.com/lodastack/event/models"
+	"github.com/lodastack/event/common"
 )
 
 type (
@@ -12,23 +12,24 @@ type (
 	ALARM string
 	HOST  string
 
-	HostStatus  map[HOST]models.Status
+	HostStatus  map[HOST]Status
 	AlarmStatus map[ALARM]HostStatus
 	NsStatus    map[NS]AlarmStatus
 )
 
-var statusData = make(NsStatus)
-var mu sync.RWMutex
+var StatusData = make(NsStatus)
+var StatusMu sync.RWMutex
 
-func getNsStatusFromGlobal(ns NS) NsStatus {
+func GetNsStatusFromGlobal(nsStr string) NsStatus {
+	ns := NS(nsStr)
 	var output map[NS]AlarmStatus
 
-	mu.RLock()
+	StatusMu.RLock()
 	if ns == "" {
-		output = statusData
+		output = StatusData
 	} else {
 		output = map[NS]AlarmStatus{}
-		for _ns, alarmStatus := range statusData {
+		for _ns, alarmStatus := range StatusData {
 			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns ||
 				(len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.') {
 				continue
@@ -36,7 +37,7 @@ func getNsStatusFromGlobal(ns NS) NsStatus {
 			output[_ns] = alarmStatus
 		}
 	}
-	mu.RUnlock()
+	StatusMu.RUnlock()
 	return output
 }
 
@@ -54,12 +55,12 @@ func (s *NsStatus) Walk(walkFunc WalkFunc) WalkResult {
 	result := make(map[NS]interface{}, len(*s))
 	for ns, alarmStatus := range *s {
 		if len(alarmStatus) == 0 {
-			walkFunc(ns, "", "", OK, result)
+			walkFunc(ns, "", "", common.OK, result)
 			continue
 		}
 		for alarmVersion, hostsStatus := range alarmStatus {
 			if len(hostsStatus) == 0 {
-				walkFunc(ns, alarmVersion, "", OK, result)
+				walkFunc(ns, alarmVersion, "", common.OK, result)
 				continue
 			}
 			for host, hostStatus := range hostsStatus {
@@ -72,13 +73,13 @@ func (s *NsStatus) Walk(walkFunc WalkFunc) WalkResult {
 
 // GetNsStatus return map[string]bool reveal ns status.
 // ns is identified by OK if has no alarmStatus.
-func (s *NsStatus) getNsStatus() WalkResult {
-	mu.RLock()
-	defer mu.RUnlock()
+func (s *NsStatus) GetNsStatus() WalkResult {
+	StatusMu.RLock()
+	defer StatusMu.RUnlock()
 	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = true
-		} else if status != OK {
+		} else if status != common.OK {
 			result[ns] = false
 		}
 	})
@@ -86,9 +87,9 @@ func (s *NsStatus) getNsStatus() WalkResult {
 
 // getAlarmStatus return map[NS]map[ALARM]bool reveal alarm status.
 // ns/alarm is identified by OK if has no hostStatus.
-func (s *NsStatus) getAlarmStatus() WalkResult {
-	mu.RLock()
-	defer mu.RUnlock()
+func (s *NsStatus) GetAlarmStatus() WalkResult {
+	StatusMu.RLock()
+	defer StatusMu.RUnlock()
 	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = make(map[ALARM]bool)
@@ -97,34 +98,34 @@ func (s *NsStatus) getAlarmStatus() WalkResult {
 		if alarmVersion == "" {
 			return
 		}
-		if _, exist := result[ns].(map[ALARM]bool)[alarmVersion]; !exist && status == OK {
+		if _, exist := result[ns].(map[ALARM]bool)[alarmVersion]; !exist && status == common.OK {
 			result[ns].(map[ALARM]bool)[alarmVersion] = true
-		} else if status != OK {
+		} else if status != common.OK {
 			result[ns].(map[ALARM]bool)[alarmVersion] = false
 		}
 	})
 }
 
 // getNotOkHost return map[NS]map[HOST]bool reveal the not OK host.
-func (s *NsStatus) getNotOkHost() WalkResult {
-	mu.RLock()
-	defer mu.RUnlock()
+func (s *NsStatus) GetNotOkHost() WalkResult {
+	StatusMu.RLock()
+	defer StatusMu.RUnlock()
 	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = make(map[HOST]bool)
 		}
 
-		if host != "" && status != OK {
+		if host != "" && status != common.OK {
 			result[ns].(map[HOST]bool)[host] = false
 		}
 	})
 }
 
 // GetStatusList return status list by level(OK, CRITICAL...).
-func (s *NsStatus) getStatusList(level string) []models.Status {
-	output := make([]models.Status, 0)
-	mu.RLock()
-	defer mu.RUnlock()
+func (s *NsStatus) GetStatusList(level string) []Status {
+	output := make([]Status, 0)
+	StatusMu.RLock()
+	defer StatusMu.RUnlock()
 	for _, alarmStatus := range *s {
 		for _, hostStatus := range alarmStatus {
 			for _, hostStatus := range hostStatus {

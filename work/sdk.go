@@ -33,7 +33,6 @@ var (
 )
 
 // newMetric make []m.Metric with the param.
-// NOTICE: newMetric not set Metric.Name.
 func (s *SdkLog) newMetric(name, ns, measurement, alarmLevel, host, status string, receives []string, value float64) []m.Metric {
 	ms := make([]m.Metric, 1)
 	receiverList := loda.GetUserInfo(receives)
