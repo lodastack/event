@@ -42,12 +42,11 @@ func init() {
 		os.Exit(1)
 	}
 	initLog(config.GetConfig().Log)
-	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func main() {
 	fmt.Printf("build via golang version: %s\n", runtime.Version())
-	c, err := cluster.NewCluster(config.GetConfig().Etcd.Addr, config.GetConfig().Etcd.Endpoints,
+	c, err := cluster.NewCluster(config.GetConfig().Etcd.Endpoints,
 		config.GetConfig().Etcd.Auth, config.GetConfig().Etcd.Username, config.GetConfig().Etcd.Password, 5, 5)
 	if err != nil {
 		fmt.Printf("NewCluster error: %s\n", err.Error())
