@@ -99,18 +99,19 @@ func (l *lodaAlarm) updateAlarms() error {
 		if len(alarmMap) == 0 {
 			continue
 		}
-		// add new alarm
-		for version, alarm := range alarmMap {
-			_, ok := l.NsAlarms[ns][version]
-			if !ok {
-				l.NsAlarms[ns][alarm.Version] = newAlarm(alarm)
-			}
-		}
 
 		// remove not exist alarm
 		for oldAlarmVersion := range l.NsAlarms[ns] {
 			if _, ok := alarmMap[oldAlarmVersion]; !ok {
 				delete(l.NsAlarms[ns], oldAlarmVersion)
+			}
+		}
+
+		// add new alarm
+		for version, alarm := range alarmMap {
+			_, ok := l.NsAlarms[ns][version]
+			if !ok {
+				l.NsAlarms[ns][alarm.Version] = newAlarm(alarm)
 			}
 		}
 

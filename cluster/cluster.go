@@ -31,7 +31,7 @@ type Inf interface {
 }
 
 // NewCluster return cluster interface.
-func NewCluster(selfAddr string, endpoints []string, basicAuth bool, username, password string,
+func NewCluster(endpoints []string, basicAuth bool, username, password string,
 	headTimeout, nodeTTL time.Duration) (Inf, error) {
 	var c client.Client
 	var kapi client.KeysAPI
