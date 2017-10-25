@@ -250,13 +250,13 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 	}
 
 	// update alarm status
-	if err := w.setStatusAndLogToSDK(ns, alarm.AlarmData, host, ip, eventData.Level, reveives, eventData); err != nil {
+	if err := w.setStatusAndLogToSDK(ns, alarm.AlarmData, host, ip, eventData.Level.String(), reveives, eventData); err != nil {
 		log.Errorf("set ns %s alarm %s host %s fail: %s",
 			ns, alarm.AlarmData.Version, host, err.Error())
 	}
 
 	// read and check block/times
-	if eventData.Level == common.OK {
+	if eventData.Level.String() == common.OK {
 		w.Block.ClearBlock(ns, alarm.AlarmData.Version, host)
 		return send(
 			alarm.AlarmData.Name,

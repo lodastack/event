@@ -2,7 +2,9 @@ package models
 
 import "time"
 
-type AlertMsg struct {
+// NotifyData is the notify infomation.
+// It will generate different noitify content by different notify type.
+type NotifyData struct {
 	Receivers []string
 
 	Ns          string
@@ -19,9 +21,10 @@ type AlertMsg struct {
 	Msg string
 }
 
+// NewAlertMsg genarate NotifyData by alert infomation.
 func NewAlertMsg(ns, host, ip, measurement, level string, alarmName string,
-	expression string, receivers []string, tags map[string]string, value float64, time time.Time) AlertMsg {
-	return AlertMsg{
+	expression string, receivers []string, tags map[string]string, value float64, time time.Time) NotifyData {
+	return NotifyData{
 		Ns:          ns,
 		Host:        host,
 		IP:          ip,
@@ -36,7 +39,8 @@ func NewAlertMsg(ns, host, ip, measurement, level string, alarmName string,
 	}
 }
 
-type OutputMsg struct {
+// NotifyMsg define the noitfy content, method and recieve groups.
+type NotifyMsg struct {
 	Types   []string `json:"types"`
 	Subject string   `json:"subject"`
 	Content string   `json:"content"`

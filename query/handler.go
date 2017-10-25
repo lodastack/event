@@ -117,25 +117,25 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 	succResp(resp, 200, "OK", nil)
 }
 
-func outputHandler(resp http.ResponseWriter, req *http.Request) {
+func notifyHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Errorf("Read body fail: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "read body fail")
 		return
 	}
-	var outputMsg models.OutputMsg
-	if err = json.Unmarshal(body, &outputMsg); err != nil {
+	var nitofyMsg models.NotifyMsg
+	if err = json.Unmarshal(body, &nitofyMsg); err != nil {
 		log.Errorf("Json unmarshal error: %s.", err.Error())
 		errResp(resp, http.StatusInternalServerError, "parse json error")
 		return
 	}
-	if len(outputMsg.Types) == 0 || outputMsg.Content == "" || len(outputMsg.Groups) == 0 {
+	if len(nitofyMsg.Types) == 0 || nitofyMsg.Content == "" || len(nitofyMsg.Groups) == 0 {
 		succResp(resp, 400, "param is invalid", nil)
 		return
 	}
 
-	for _, _type := range outputMsg.Types {
+	for _, _type := range nitofyMsg.Types {
 		handler, ok := o.Handlers[_type]
 		if !ok {
 			succResp(resp, 400, "type is invalid", nil)
@@ -143,13 +143,13 @@ func outputHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 
 		go func(handler o.HandleFunc, receivers []string) {
-			if err := handler(models.AlertMsg{
-				Msg:       outputMsg.Content,
-				AlarmName: outputMsg.Subject,
+			if err := handler(models.NotifyData{
+				Msg:       nitofyMsg.Content,
+				AlarmName: nitofyMsg.Subject,
 				Receivers: receivers}); err != nil {
 				log.Error("output fail:", err.Error())
 			}
-		}(handler, loda.GetGroupUsers(outputMsg.Groups))
+		}(handler, loda.GetGroupUsers(nitofyMsg.Groups))
 	}
 
 	succResp(resp, 200, "OK", nil)

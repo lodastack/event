@@ -35,14 +35,14 @@ func send(alarmName, alarmLevel, expression, alertLevel, ip string, alertTypes [
 
 	alertMsg := models.NewAlertMsg(
 		eventData.Ns, host, ip, measurement,
-		eventData.Level, alarmName, expression, recievers, tags,
+		eventData.Level.String(), alarmName, expression, recievers, tags,
 		value, eventData.Time)
-	go _sentToAlertHandler(alertTypes, alertMsg)
+	go sentToAlertHandler(alertTypes, alertMsg)
 	return nil
 }
 
 // send the alertMsg to sms/mail/wechat handler.
-func _sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
+func sentToAlertHandler(alertType []string, noitfyData models.NotifyData) error {
 	alertType = common.RemoveDuplicateAndEmpty(alertType)
 
 	for _, handler := range alertType {
@@ -51,7 +51,7 @@ func _sentToAlertHandler(alertType []string, alertMsg models.AlertMsg) error {
 			log.Errorf("Unknow alert type %s.", handler)
 			continue
 		}
-		if err := handlerFunc(alertMsg); err != nil {
+		if err := handlerFunc(noitfyData); err != nil {
 			log.Errorf("output %s fail: %s", handler, err.Error())
 			return err
 		}

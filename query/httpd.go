@@ -101,7 +101,7 @@ func addHandlers() {
 	prefix := "/event"
 
 	http.Handle(prefix+"/post", cors(http.HandlerFunc(postDataHandler)))
-	http.Handle(prefix+"/output", cors(http.HandlerFunc(outputHandler)))
+	http.Handle(prefix+"/output", cors(http.HandlerFunc(notifyHandler)))
 	http.Handle(prefix+"/status", cors(http.HandlerFunc(statusHandler)))
 	http.Handle(prefix+"/clear/status", cors(http.HandlerFunc(clearStatusHandler)))
 }
