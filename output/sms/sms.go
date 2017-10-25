@@ -15,9 +15,9 @@ const (
 	timeFormat = "2006-01-02 15:04:05"
 )
 
-func SendSMS(alertMsg models.AlertMsg) error {
-	mobiles := loda.GetUserMobile(alertMsg.Receivers)
-	content := genSmsContent(alertMsg)
+func SendSMS(notifyData models.NotifyData) error {
+	mobiles := loda.GetUserMobile(notifyData.Receivers)
+	content := genSmsContent(notifyData)
 
 	for _, mobile := range mobiles {
 		go sendSMS(mobile, content)
@@ -39,27 +39,27 @@ func sendSMS(mobile, content string) {
 	}
 }
 
-func genSmsContent(alertMsg models.AlertMsg) string {
-	if alertMsg.Msg != "" {
-		return strings.Replace(alertMsg.Msg, "\n", "\r\n", -1)
+func genSmsContent(notifyData models.NotifyData) string {
+	if notifyData.Msg != "" {
+		return strings.Replace(notifyData.Msg, "\n", "\r\n", -1)
 	}
 
 	var tagDescribe string
-	for k, v := range alertMsg.Tags {
+	for k, v := range notifyData.Tags {
 		tagDescribe += k + "\t:  " + v + "\r\n"
 	}
-	if len(alertMsg.Tags) > 1 {
+	if len(notifyData.Tags) > 1 {
 		tagDescribe = tagDescribe[:len(tagDescribe)-2]
 	}
 	return fmt.Sprintf("%s  %s\r\n%s  %s  %s\r\nns: %s\r\n%s \r\nvalue: %.2f \r\ntime: %v",
-		alertMsg.AlarmName,
-		alertMsg.Level,
-		alertMsg.Host,
-		alertMsg.Measurement,
-		alertMsg.Expression,
+		notifyData.AlarmName,
+		notifyData.Level,
+		notifyData.Host,
+		notifyData.Measurement,
+		notifyData.Expression,
 
-		alertMsg.Ns,
+		notifyData.Ns,
 		tagDescribe,
-		alertMsg.Value,
-		alertMsg.Time.Format(timeFormat))
+		notifyData.Value,
+		notifyData.Time.Format(timeFormat))
 }

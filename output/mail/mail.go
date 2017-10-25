@@ -24,19 +24,19 @@ const (
 
 var mailSuffix, mailSubject string
 
-func SendEMail(alertMsg models.AlertMsg) error {
-	revieve := make([]string, len(alertMsg.Receivers))
+func SendEMail(notifyData models.NotifyData) error {
+	revieve := make([]string, len(notifyData.Receivers))
 	mailSuffix = config.GetConfig().Mail.MailSuffix
-	for index, username := range alertMsg.Receivers {
+	for index, username := range notifyData.Receivers {
 		revieve[index] = username + mailSuffix
 	}
 
 	var addPng bool
-	pngBase64, err := getPngBase64(alertMsg)
+	pngBase64, err := getPngBase64(notifyData)
 	if err == nil && len(pngBase64) != 0 {
 		addPng = true
 	} else {
-		log.Errorf("getPngBase64 fail, msg: %+v, err: %+v, length: %d", alertMsg, err, len(pngBase64))
+		log.Errorf("getPngBase64 fail, msg: %+v, err: %+v, length: %d", notifyData, err, len(pngBase64))
 	}
 
 	return SendMail(config.GetConfig().Mail.Host,
@@ -44,52 +44,52 @@ func SendEMail(alertMsg models.AlertMsg) error {
 		config.GetConfig().Mail.User,
 		config.GetConfig().Mail.Pwd,
 		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""},
-		config.GetConfig().Mail.SubjectPrefix+" "+genMailSubject(alertMsg),
-		genMailContent(alertMsg),
+		config.GetConfig().Mail.SubjectPrefix+" "+genMailSubject(notifyData),
+		genMailContent(notifyData),
 		addPng, pngBase64,
 	)
 }
 
-func genMailSubject(alertMsg models.AlertMsg) string {
-	if alertMsg.Msg != "" {
-		return alertMsg.AlarmName
+func genMailSubject(notifyData models.NotifyData) string {
+	if notifyData.Msg != "" {
+		return notifyData.AlarmName
 	}
 	return fmt.Sprintf("%s   %s   is  %s",
-		alertMsg.Host, alertMsg.Measurement, alertMsg.Level)
+		notifyData.Host, notifyData.Measurement, notifyData.Level)
 }
 
-func genMailContent(alertMsg models.AlertMsg) string {
-	if alertMsg.Msg != "" {
-		return strings.Replace(alertMsg.Msg, "\n", "</br>", -1)
+func genMailContent(notifyData models.NotifyData) string {
+	if notifyData.Msg != "" {
+		return strings.Replace(notifyData.Msg, "\n", "</br>", -1)
 	}
 	var tagDescribe string
-	if len(alertMsg.Tags) > 0 {
-		for k, v := range alertMsg.Tags {
+	if len(notifyData.Tags) > 0 {
+		for k, v := range notifyData.Tags {
 			tagDescribe += k + ":\t" + v + "</br>"
 		}
 		tagDescribe = tagDescribe[:len(tagDescribe)-5]
 	}
 
 	var levelColor string
-	if alertMsg.Level == OK {
+	if notifyData.Level == OK {
 		levelColor = "green"
 	} else {
 		levelColor = "red"
 	}
-	status := fmt.Sprintf("<font style=\"color:%s\">%s</font>", levelColor, alertMsg.Level)
+	status := fmt.Sprintf("<font style=\"color:%s\">%s</font>", levelColor, notifyData.Level)
 
 	var ipDesc string
-	if alertMsg.IP != "" {
-		ipDesc = "</br>ip: " + alertMsg.IP
+	if notifyData.IP != "" {
+		ipDesc = "</br>ip: " + notifyData.IP
 	}
 	return fmt.Sprintf("%s\t%s</br></br>ns: %s%s</br>%s </br>value: %.2f </br></br>time: %v",
-		alertMsg.AlarmName,
+		notifyData.AlarmName,
 		status,
-		alertMsg.Ns,
+		notifyData.Ns,
 		ipDesc,
 		tagDescribe,
-		alertMsg.Value,
-		alertMsg.Time.Format(timeFormat))
+		notifyData.Value,
+		notifyData.Time.Format(timeFormat))
 }
 
 func catchPanic(err *error, functionName string) {

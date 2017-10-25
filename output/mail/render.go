@@ -12,26 +12,26 @@ import (
 	"github.com/lodastack/log"
 )
 
-func getPngPath(alertMsg models.AlertMsg) (string, error) {
+func getPngPath(notifyData models.NotifyData) (string, error) {
 	var whereSql, whereStr string
 	//where=("host"='xxx') AND ("interface"='xxx')
 
-	for k, v := range alertMsg.Tags {
+	for k, v := range notifyData.Tags {
 		whereSql = fmt.Sprintf(" (\"%s\"__'%s') AND %s", k, v, whereSql)
 		whereStr = fmt.Sprintf("%s %s: %s", whereStr, k, v)
 	}
 	whereSql = strings.TrimRight(whereSql, "AND ")
 
 	ID := fmt.Sprintf("%s-%s-%s-%s",
-		alertMsg.Ns, alertMsg.Measurement, strings.Replace(whereSql, " ", "", -1), alertMsg.Time.Format("2006-01-02T15:04:05"))
+		notifyData.Ns, notifyData.Measurement, strings.Replace(whereSql, " ", "", -1), notifyData.Time.Format("2006-01-02T15:04:05"))
 
 	params := renderer.RenderOps{
 		ID:          ID,
-		Ns:          "collect." + alertMsg.Ns,
-		Measurement: alertMsg.Measurement,
+		Ns:          "collect." + notifyData.Ns,
+		Measurement: notifyData.Measurement,
 		Time:        time.Now(), // TODO: or alertMsg.Time?
 		Fn:          "mean",
-		Title:       alertMsg.Ns + " " + alertMsg.Measurement + whereStr,
+		Title:       notifyData.Ns + " " + notifyData.Measurement + whereStr,
 		Where:       whereSql,
 	}
 	return renderer.RenderToPng(&params)
@@ -48,8 +48,8 @@ func readPngToBase64(path string) ([]byte, error) {
 	return pngBase64, nil
 }
 
-func getPngBase64(alertMsg models.AlertMsg) ([]byte, error) {
-	filePath, err := getPngPath(alertMsg)
+func getPngBase64(notifyData models.NotifyData) ([]byte, error) {
+	filePath, err := getPngPath(notifyData)
 	if err != nil {
 		return nil, err
 	}

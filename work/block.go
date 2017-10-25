@@ -40,7 +40,6 @@ func NewBlock(c Cluster) Block {
 // ClearBlock status/times by ns/alarmVersion/host.
 func (b *block) ClearBlock(ns, alarmVersion, host string) error {
 	alarmHostPath := AbsPath(HostKey(ns, alarmVersion, host))
-	// alarmHostPath := cluster.EtcdPrefix + "/" + ns + "/" + version + "/" + cluster.AlarmHostPath + "/" + host
 	if err := b.c.RemoveDir(alarmHostPath); err != nil {
 		if !strings.Contains(err.Error(), "Key not found") {
 			return err

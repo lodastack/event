@@ -17,20 +17,20 @@ const (
 	multi = "convergence"
 )
 
-func SendWechat(alertMsg models.AlertMsg) error {
+func SendWechat(notifyData models.NotifyData) error {
 	var title string
-	if alertMsg.Msg == "" {
-		title = fmt.Sprintf("报警:%s  %s", alertMsg.AlarmName, alertMsg.Level)
+	if notifyData.Msg == "" {
+		title = fmt.Sprintf("报警:%s  %s", notifyData.AlarmName, notifyData.Level)
 	}
 
-	content := genWechatContent(alertMsg)
+	content := genWechatContent(notifyData)
 
-	if len(alertMsg.Receivers) == 0 {
-		log.Error("invalid Users: %v", alertMsg.Receivers)
+	if len(notifyData.Receivers) == 0 {
+		log.Errorf("invalid Users: %v", notifyData.Receivers)
 		return nil
 	}
 	_, err := requests.PostWithHeader(config.GetConfig().Wechat.Url,
-		map[string]string{"account": strings.Join(alertMsg.Receivers, "|"), "title": title, "content": content}, []byte{},
+		map[string]string{"account": strings.Join(notifyData.Receivers, "|"), "title": title, "content": content}, []byte{},
 		map[string]string{"authToken": config.GetConfig().Wechat.Token}, 10)
 	if err != nil {
 		log.Error("send Wechat fail: %s", err.Error())
@@ -39,28 +39,28 @@ func SendWechat(alertMsg models.AlertMsg) error {
 	return nil
 }
 
-func genWechatContent(alertMsg models.AlertMsg) string {
-	if alertMsg.Msg != "" {
-		return alertMsg.Msg
+func genWechatContent(notifyData models.NotifyData) string {
+	if notifyData.Msg != "" {
+		return notifyData.Msg
 	}
 	var ipDesc string
-	if alertMsg.IP != "" {
-		ipDesc = "ip: " + alertMsg.IP + "\n"
+	if notifyData.IP != "" {
+		ipDesc = "ip: " + notifyData.IP + "\n"
 	}
 
 	var tagDescribe string
-	for k, v := range alertMsg.Tags {
+	for k, v := range notifyData.Tags {
 		tagDescribe += k + ":\t  " + v + "\n"
 	}
-	if len(alertMsg.Tags) > 1 {
+	if len(notifyData.Tags) > 1 {
 		tagDescribe = tagDescribe[:len(tagDescribe)-1]
 	}
 
 	return fmt.Sprintf("内容:\nmeasurement:  %s\nns: %s\n%s%s\nvalue: %.2f \ntime: %v",
-		alertMsg.Measurement,
-		alertMsg.Ns,
+		notifyData.Measurement,
+		notifyData.Ns,
 		ipDesc,
 		tagDescribe,
-		alertMsg.Value,
-		alertMsg.Time.Format(timeFormat))
+		notifyData.Value,
+		notifyData.Time.Format(timeFormat))
 }

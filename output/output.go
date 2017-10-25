@@ -14,6 +14,6 @@ func init() {
 	Handlers["wechat"] = wechat.SendWechat
 }
 
-type HandleFunc func(alertMsg models.AlertMsg) error
+type HandleFunc func(alertMsg models.NotifyData) error
 
 var Handlers map[string]HandleFunc
