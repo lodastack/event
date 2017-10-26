@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -30,8 +31,7 @@ func GetNsStatusFromGlobal(nsStr string) NsStatus {
 	} else {
 		output = map[NS]AlarmStatus{}
 		for _ns, alarmStatus := range StatusData {
-			if len(_ns) < len(ns) || _ns[len(_ns)-len(ns):] != ns ||
-				(len(_ns) > len(ns) && _ns[len(_ns)-len(ns)-1] != '.') {
+			if !strings.HasSuffix("."+string(_ns), "."+string(ns)) {
 				continue
 			}
 			output[_ns] = alarmStatus
