@@ -40,7 +40,7 @@ func (e *EventData) Host() (string, bool) {
 func EncodeTags(m map[string]string) []byte {
 	// Empty maps marshal to empty bytes.
 	if len(m) == 0 {
-		return nil
+		return []byte(NoneTags)
 	}
 
 	// Extract keys and determine final size.

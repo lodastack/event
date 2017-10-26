@@ -16,6 +16,7 @@ const (
 	DefaultInterval int = 1
 
 	// block status
+	noAction               int = -1
 	noBlock                int = 0
 	addBlock               int = 1
 	alreadyAlertWhileBlock int = 2
@@ -51,12 +52,10 @@ func (b *block) ClearBlock(ns, alarmVersion, host string) error {
 
 // IsBlock check the ns/alarm/host is block or not, set the block status and times.
 func (b *block) IsBlock(ns string, alarm *loda.Alarm, host string) bool {
-	status, statusTTL, blockTimes, timesTTL, isBlock := b.readBlock(ns, alarm, host)
-	if status != 0 {
-		b.setBlockStatus(ns, alarm.AlarmData.Version, host, status, statusTTL)
-	}
-	if blockTimes != 0 {
-		b.setBlockTimes(ns, alarm.AlarmData.Version, host, blockTimes, timesTTL)
+	newBlockStatus, newBlockStatusTTL, newBlockTimes, newBlockTimesTTL, isBlock := b.readBlock(ns, alarm, host)
+	if newBlockStatus != noAction && newBlockTimes != noAction {
+		b.setBlockStatus(ns, alarm.AlarmData.Version, host, newBlockStatus, newBlockStatusTTL)
+		b.setBlockTimes(ns, alarm.AlarmData.Version, host, newBlockTimes, newBlockTimesTTL)
 	}
 	return isBlock
 }
@@ -65,21 +64,31 @@ func (b *block) IsBlock(ns string, alarm *loda.Alarm, host string) bool {
 // Block status, block times and their TTL will be treated in different way such as noBlock/addBlock/alreadyAlertWhileBlock.
 // TimesTTL is statusTTL + alarm check interval, because event would happen not exactly which influence by net/machine and the other factors.
 //
-// noBlock:                has no block status and times, not block this event,
-//                         set times as 1 and set status as alreadyAlertWhileBlock.
-// addBlock:               has no status but has times, not block this event,
-//                         set times as times+1 and set status as alreadyAlertWhileBlock.
-//                         this status may be caused event happen at time which statusTTL timeout but in one alarm check interval.
-// alreadyAlertWhileBlock: event happen when block is not timeout,
-//                         block this event and set times +1 which cause the TTL + (alarm check interval).
-func (b *block) readBlock(ns string, alarm *loda.Alarm, host string) (status, statusTTL, blockTimes, timesTTL int, isBlock bool) {
+// noBlock:                The alarm happen first time, can not read any block status and times.
+//                         Do not block this alarm.
+//                         Set block times as 1 and set block status as alreadyAlertWhileBlock.
+//
+// addBlock:               Alarm occurs within one of the collect interval after last block, so can read block times and not read block status.
+//                         Do not block this alarm.
+//                         Only in this case can update block times as blocktimes+1, set status as alreadyAlertWhileBlock.
+//                         This status may be caused event happen at time which statusTTL timeout but in one alarm check interval.
+//
+// alreadyAlertWhileBlock: Alarm happen when block is not timeout,
+//                         Do nothing.
+func (b *block) readBlock(ns string, alarm *loda.Alarm, host string) (
+	newBlockStatus, newBlockStatusTTL, newBlockTimes, newTimesTTL int, isBlock bool) {
 	var errStatus, errTimes error
-	status, errStatus = b.getBlockStatus(ns, alarm.AlarmData.Version, host)
-	blockTimes, errTimes = b.getBlockTimes(ns, alarm.AlarmData.Version, host)
+	blockStatus, errStatus := b.getBlockStatus(ns, alarm.AlarmData.Version, host)
+	if errStatus != nil {
+		// Treat this alarm as first happen if block status not exist or read fail.
+		blockStatus = noBlock
+	}
+	blockTimes, errTimes := b.getBlockTimes(ns, alarm.AlarmData.Version, host)
 
-	// do not block this event and set block times as block times+1 if the block has times but has no status.
+	// Do not block this event and set block times as block times+1 if the block has times but has no status.
+	// Only in this case can the block times is updated to (last blocktimes + 1).
 	if errStatus != nil && errTimes == nil && blockTimes > 0 {
-		status = addBlock
+		blockStatus = addBlock
 	}
 
 	// read alarm check interval, read as DefaultEvery if fail.
@@ -88,17 +97,17 @@ func (b *block) readBlock(ns string, alarm *loda.Alarm, host string) (status, st
 		e = DefaultInterval
 	}
 
-	switch status {
+	switch blockStatus {
 	case noBlock:
-		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStep, 1, alarm.MaxStackTime, e)
-		status, blockTimes, isBlock = alreadyAlertWhileBlock, 1, false
+		newBlockStatusTTL, newTimesTTL = getBlockKeyTTL(alarm.BlockStep, 1, alarm.MaxStackTime, e)
+		newBlockStatus, newBlockTimes, isBlock = alreadyAlertWhileBlock, 1, false
 
 	case addBlock:
-		status, blockTimes, isBlock = alreadyAlertWhileBlock, blockTimes+1, false
-		statusTTL, timesTTL = getBlockKeyTTL(alarm.BlockStep, blockTimes, alarm.MaxStackTime, e)
+		newBlockStatus, newBlockTimes, isBlock = alreadyAlertWhileBlock, blockTimes+1, false
+		newBlockStatusTTL, newTimesTTL = getBlockKeyTTL(alarm.BlockStep, blockTimes, alarm.MaxStackTime, e)
 
 	case alreadyAlertWhileBlock:
-		status, blockTimes = 0, 0
+		newBlockStatus, blockTimes = noAction, noAction
 		isBlock = true
 	}
 
