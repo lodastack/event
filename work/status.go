@@ -16,13 +16,13 @@ type ClusterStatus interface {
 	GetStatusFromLocal(ns string) LocalStatusInf
 
 	// QueryStatus query status to cluster.
-	GetStatusFromCluster(ns, alarmVersion, host string) (models.Status, error)
+	GetStatusFromCluster(ns, alarmVersion, hostname, tagString string) (models.Status, error)
 
 	// SetStatus set the status to cluster.
-	SetStatus(ns string, alarm m.Alarm, host string, newStatus models.Status) error
+	SetStatus(ns string, alarm m.Alarm, hostname, tagString string, newStatus models.Status) error
 
 	// ClearStatus clear status by ns/alarmVersion/host.
-	ClearStatus(ns, alarmVersion, host string) error
+	ClearStatus(ns, alarmVersion, host, tagString string) error
 
 	// GenGlobalStatus update global NsStatus according to cluster.
 	GenGlobalStatus() error
@@ -59,9 +59,9 @@ func (s *status) GetStatusFromLocal(ns string) LocalStatusInf {
 	return &status
 }
 
-// GetStatusFromCluster query status to cluster.
-func (s *status) GetStatusFromCluster(ns, alarmVersion, host string) (models.Status, error) {
-	path := HostStatusKey(ns, alarmVersion, host)
+// GetStatusFromCluster query status from cluster.
+func (s *status) GetStatusFromCluster(ns, alarmVersion, hostname, tagString string) (models.Status, error) {
+	path := StatusKey(ns, alarmVersion, hostname, tagString)
 	rep, err := s.c.RecursiveGet(path)
 	if err != nil {
 		return models.Status{}, err
@@ -70,14 +70,14 @@ func (s *status) GetStatusFromCluster(ns, alarmVersion, host string) (models.Sta
 }
 
 // SetStatus set the status to cluster.
-func (s *status) SetStatus(ns string, alarm m.Alarm, host string, newStatus models.Status) error {
-	statusPath := HostStatusKey(ns, alarm.Version, host)
+func (s *status) SetStatus(ns string, alarm m.Alarm, hostname, tagString string, newStatus models.Status) error {
+	statusPath := StatusKey(ns, alarm.Version, hostname, tagString)
 	statusString, _ := newStatus.String()
 	return s.c.Set(statusPath, statusString, &client.SetOptions{})
 }
 
 // ClearStatus clear status by ns/alarmVersion/host.
-func (s *status) ClearStatus(ns, alarmVersion, host string) error {
+func (s *status) ClearStatus(ns, alarmVersion, hostname, tagString string) error {
 	models.StatusMu.Lock()
 	defer models.StatusMu.Unlock()
 	alarmsStatus, ok := models.StatusData[models.NS(ns)]
@@ -88,20 +88,20 @@ func (s *status) ClearStatus(ns, alarmVersion, host string) error {
 		if alarmVersion != "" && models.ALARM(alarmVersion) != _alarmVersion {
 			continue
 		}
-		for _host := range _hostStatus {
-			if host != "" && models.HOST(host) != _host {
+		for _host, _hostStatus := range _hostStatus {
+			if hostname != "" && models.HOST(hostname) != _host {
 				continue
 			}
-			delete(models.StatusData[models.NS(ns)][models.ALARM(alarmVersion)], models.HOST(host))
+			for _tag := range _hostStatus {
+				if tagString != "" && models.TAG(tagString) != _tag {
+					continue
+				}
 
-			statusStatusPath := AbsPath(HostStatusKey(ns, string(_alarmVersion), string(_host)))
-			hostStatusPath := AbsPath(HostKey(ns, string(_alarmVersion), string(_host)))
-			if err := s.c.RemoveDir(statusStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
-				log.Errorf("del status dir %s fail: %s", statusStatusPath, err.Error())
-			}
-			if err := s.c.RemoveDir(hostStatusPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
-				if !strings.Contains(err.Error(), "Key not found") {
-					log.Errorf("del host dir %s fail: %s", hostStatusPath, err.Error())
+				delete(models.StatusData[models.NS(ns)][models.ALARM(alarmVersion)][models.HOST(hostname)], models.TAG(tagString))
+
+				tagPath := AbsPath(TagDir(ns, string(_alarmVersion), string(_host), tagString))
+				if err := s.c.RemoveDir(tagPath); err != nil && !strings.Contains(err.Error(), "Key not found") {
+					log.Errorf("del status dir %s fail: %s", tagPath, err.Error())
 				}
 			}
 		}
@@ -113,71 +113,53 @@ func (s *status) ClearStatus(ns, alarmVersion, host string) error {
 // GenGlobalStatus read status data from cluster, and update the global NsStatus.
 func (s *status) GenGlobalStatus() error {
 	data := make(models.NsStatus)
-	if err := s.genNsStatus(&data); err != nil {
+	if err := s.genGlobalStatus(&data); err != nil {
 		log.Errorf("HandleStatus get ns fail: %s", err.Error())
 		return err
 	}
 
-	if err := s.genAlarmStatusForNs(&data); err != nil {
-		log.Errorf("HandleStatus get alarm fail: %s", err.Error())
-		return err
-	}
-
-	if err := s.genHostStatusForAlarm(&data); err != nil {
-		log.Errorf("HandleStatus get alarm fail: %s", err.Error())
-		return err
-	}
 	models.StatusMu.Lock()
 	models.StatusData = data
 	models.StatusMu.Unlock()
 	return nil
 }
 
-func (s *status) genNsStatus(nsStatus *models.NsStatus) error {
+func (s *status) genGlobalStatus(nsStatus *models.NsStatus) error {
 	rep, err := s.c.RecursiveGet("")
 	if err != nil {
 		log.Errorf("work HandleStatus get root fail: %s", err.Error())
 		return err
 	}
 
-	for _, node := range rep.Node.Nodes {
-		(*nsStatus)[models.NS(ReadEtcdLastSplit(node.Key))] = make(map[models.ALARM]models.HostStatus)
-	}
-	return nil
-}
-
-func (s *status) genAlarmStatusForNs(nsStatus *models.NsStatus) error {
-	for ns := range *nsStatus {
-		rep, err := s.c.RecursiveGet(string(ns))
-		if err != nil {
-			log.Errorf("work HandleStatus get ns %s fail: %s", ns, err.Error())
-			continue
-			// return err ?
-		}
-		for _, node := range rep.Node.Nodes {
-			alarmVersion := ReadEtcdLastSplit(node.Key)
-			(*nsStatus)[ns][models.ALARM(alarmVersion)] = models.HostStatus{}
-		}
-	}
-	return nil
-}
-
-func (s *status) genHostStatusForAlarm(nsStatus *models.NsStatus) error {
-	for ns := range *nsStatus {
-		for alarmVersion := range (*nsStatus)[ns] {
-			rep, err := s.c.RecursiveGet(StatusDir(string(ns), string(alarmVersion)))
-			if err != nil {
-				log.Errorf("work HandleStatus get ns %s alarm %s fail: %s", ns, alarmVersion, err.Error())
-				continue
-			}
-			for _, node := range rep.Node.Nodes {
-				host := ReadEtcdLastSplit(node.Key)
-				if node.Value != "" {
-					hostStatus, err := models.NewStatusByString(node.Value)
-					if err != nil {
-						log.Errorf("unmarshal ns %s alarm %s status fail: %s", ns, alarmVersion, err.Error())
+	// ns loop
+	for _, nsNode := range rep.Node.Nodes {
+		_ns := models.NS(ReadEtcdLastSplit(nsNode.Key))
+		(*nsStatus)[_ns] = make(map[models.ALARM]models.HostStatus)
+		// ns/alarm loop
+		for _, alarmNode := range nsNode.Nodes {
+			_alarmVersion := models.ALARM(ReadEtcdLastSplit(alarmNode.Key))
+			(*nsStatus)[_ns][_alarmVersion] = models.HostStatus{}
+			// ns/alarm/host loop
+			for _, hostNode := range alarmNode.Nodes {
+				_host := models.HOST(ReadEtcdLastSplit(hostNode.Key))
+				(*nsStatus)[_ns][_alarmVersion][_host] = models.TagStatus{}
+				// ns/alarm/host/tag loop
+				for _, tagNode := range hostNode.Nodes {
+					_tagString := models.TAG(ReadEtcdLastSplit(tagNode.Key))
+					// read status of ns/alarm/host/tag
+					for _, statusOrBlockNode := range tagNode.Nodes {
+						if !isStatusPath(statusOrBlockNode.Key) {
+							continue
+						}
+						// read status of ns/alarm/host/tag
+						status, err := models.NewStatusByString(statusOrBlockNode.Value)
+						if err != nil {
+							log.Errorf("unmarshal ns %s alarm %s host %s tag %s status fail: %s", _ns, _alarmVersion, _host, _tagString, err.Error())
+							continue
+						}
+						status.TagString = string(_tagString)
+						(*nsStatus)[_ns][_alarmVersion][_host][_tagString] = status
 					}
-					(*nsStatus)[ns][alarmVersion][models.HOST(host)] = hostStatus
 				}
 			}
 		}

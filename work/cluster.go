@@ -1,10 +1,12 @@
 package work
 
 import (
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/coreos/etcd/client"
+	"github.com/lodastack/event/config"
 )
 
 // Cluster is a simplified interface for manager data on etcd.
@@ -18,14 +20,18 @@ type Cluster interface {
 	Mkdir(k string) error
 }
 
-var (
-	statusPath  = "status"
-	hostPath    = "host"
-	blockStatus = "status"
-	blockTimes  = "blocktimes"
+const (
+	statusPath = "status"
+	blockPath  = "block"
 
-	etcdPrefix = "/loda-alarms"
+	blockStatus = "blockstatus"
+	blockTimes  = "blocktimes"
+	noneTags    = "none"
 )
+
+func isStatusPath(path string) bool {
+	return ReadEtcdLastSplit(path) == statusPath
+}
 
 // ReadEtcdLastSplit return the minimum dir/key of a etcd path.
 func ReadEtcdLastSplit(etcdPath string) string {
@@ -35,47 +41,78 @@ func ReadEtcdLastSplit(etcdPath string) string {
 
 // NsAbsPath add surfix to ns as the key of etcd.
 func NsAbsPath(ns string) string {
-	return etcdPrefix + "/" + ns
+	return config.GetConfig().Etcd.Path + "/" + ns
 }
 
 // AbsPath add surfix to path as the key of etcd.
 func AbsPath(path string) string {
-	return etcdPrefix + "/" + path
+	return config.GetConfig().Etcd.Path + "/" + path
+}
+func AlarmDir(ns, alarmVersion string) string {
+	return ns + "/" + alarmVersion
 }
 
-// StatusDir return the relative path by ns and alarm version.
-// The path is uesd to manager machine stauts.
-func StatusDir(ns, alarmVersion string) string {
-	return ns + "/" + alarmVersion + "/" + statusPath
+func HostDir(ns, alarmVersion, host string) string {
+	return AlarmDir(ns, alarmVersion) + "/" + host
 }
 
-// HostStatusKey return the relative by ns,alarm version and host.
-// The key is used as key to manage ns/alarm/host status.
-func HostStatusKey(ns, alarmVersion, host string) string {
-	return StatusDir(ns, alarmVersion) + "/" + host
+func TagDir(ns, alarmVersion, host, tagString string) string {
+	return HostDir(ns, alarmVersion, host) + "/" + tagString
 }
 
-// HostDir return the host relative path by ns and alarm version.
-// The path is used to manage block status of machine.
-func HostDir(ns, alarmVersion string) string {
-	return ns + "/" + alarmVersion + "/" + hostPath
+// StatusKey return the relative path to keep alarm status of ns/alarm/tag.
+func StatusKey(ns, alarmVersion, host, tagString string) string {
+	return TagDir(ns, alarmVersion, host, tagString) + "/" + statusPath
 }
 
-// HostKey return the host relative path by ns, alarm version and host.
-// The dir is used to manage the block status and timse of one machine.
-func HostKey(ns, alarmVersion, host string) string {
-	return HostDir(ns, alarmVersion) + "/" + host
+// blockDir return the dir to keep block status and times of ns/alarm/tag.
+func blockDir(ns, alarmVersion, host, tagString string) string {
+	return TagDir(ns, alarmVersion, host, tagString) + "/" + blockPath
 }
 
-// BlockStatus return the alarm/host block status.
+// BlockStatusKey return the ns/alarm/tag block status.
 // The block status indicate the alarm/host is not/wait/already blocked.
-func BlockStatusKey(ns, alarmVersion, host string) string {
-	return HostKey(ns, alarmVersion, host) + "/" + blockStatus
+func BlockStatusKey(ns, alarmVersion, host, tagString string) string {
+	return blockDir(ns, alarmVersion, host, tagString) + "/" + blockStatus
 }
 
-// BlockTimes return the alarm/host block times.
-// The block times indicates how many times the alarm/host is blocked,
+// BlockTimesKey return the ns/alarm/tag block times.
+// The block times indicates how many times the alarm/tag is blocked,
 // the values is used to deciede how long the this alarm/host will be blocked.
-func BlockTimesKey(ns, alarmVersion, host string) string {
-	return HostKey(ns, alarmVersion, host) + "/" + blockTimes
+func BlockTimesKey(ns, alarmVersion, host, tagString string) string {
+	return blockDir(ns, alarmVersion, host, tagString) + "/" + blockTimes
+}
+
+func encodeTags(m map[string]string) string {
+	// Empty maps marshal to empty bytes.
+	if len(m) == 0 {
+		return noneTags
+	}
+
+	// Extract keys and determine final size.
+	sz := (len(m) * 2) - 1 // separators
+	keys := make([]string, 0, len(m))
+	for k, v := range m {
+		keys = append(keys, k)
+		sz += len(k) + len(v)
+	}
+	sort.Strings(keys)
+
+	// Generate marshaled bytes.
+	b := make([]byte, sz)
+	buf := b
+	for i, k := range keys {
+		copy(buf, k)
+		buf[len(k)] = '='
+		buf = buf[len(k)+1:]
+
+		v := m[k]
+		copy(buf, v)
+		if i < len(keys)-1 {
+			buf[len(v)] = ';'
+			buf = buf[len(v)+1:]
+		}
+	}
+
+	return string(b)
 }
