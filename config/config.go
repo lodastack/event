@@ -35,6 +35,7 @@ type EtcdConfig struct {
 	Password      string        `toml:"password"`
 	Endpoints     []string      `toml:"endpoints"`
 	HeaderTimeout time.Duration `toml:"timeout"`
+	Path          string        `toml:"path"`
 }
 type MailConfig struct {
 	User string `toml:"user"`

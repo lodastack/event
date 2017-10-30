@@ -9,11 +9,13 @@ import (
 )
 
 type (
+	TAG   string
 	NS    string
 	ALARM string
 	HOST  string
 
-	HostStatus  map[HOST]Status
+	TagStatus   map[TAG]Status
+	HostStatus  map[HOST]TagStatus
 	AlarmStatus map[ALARM]HostStatus
 	NsStatus    map[NS]AlarmStatus
 )
@@ -21,6 +23,8 @@ type (
 var StatusData = make(NsStatus)
 var StatusMu sync.RWMutex
 
+// GetNsStatusFromGlobal will read status from global object and return status by input param.
+// The function will return thes status of the ns itself or its leaf child ns.
 func GetNsStatusFromGlobal(nsStr string) NsStatus {
 	ns := NS(nsStr)
 	var output map[NS]AlarmStatus
@@ -46,7 +50,7 @@ type (
 	WalkResult map[NS]interface{}
 
 	// WalkFunc is the type of the function called for each HostStatus visited by Walk.
-	WalkFunc func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult)
+	WalkFunc func(ns NS, alarmVersion ALARM, host HOST, tag TAG, status string, result WalkResult)
 )
 
 // Walk walks the status, calling walkFunc for each HostStatus.
@@ -55,16 +59,18 @@ func (s *NsStatus) Walk(walkFunc WalkFunc) WalkResult {
 	result := make(map[NS]interface{}, len(*s))
 	for ns, alarmStatus := range *s {
 		if len(alarmStatus) == 0 {
-			walkFunc(ns, "", "", common.OK, result)
+			walkFunc(ns, "", "", "", common.OK, result)
 			continue
 		}
 		for alarmVersion, hostsStatus := range alarmStatus {
 			if len(hostsStatus) == 0 {
-				walkFunc(ns, alarmVersion, "", common.OK, result)
+				walkFunc(ns, alarmVersion, "", "", common.OK, result)
 				continue
 			}
-			for host, hostStatus := range hostsStatus {
-				walkFunc(ns, alarmVersion, host, hostStatus.Level, result)
+			for host, tagStatus := range hostsStatus {
+				for tagString, tagStatus := range tagStatus {
+					walkFunc(ns, alarmVersion, host, tagString, tagStatus.Level, result)
+				}
 			}
 		}
 	}
@@ -76,7 +82,7 @@ func (s *NsStatus) Walk(walkFunc WalkFunc) WalkResult {
 func (s *NsStatus) GetNsStatus() WalkResult {
 	StatusMu.RLock()
 	defer StatusMu.RUnlock()
-	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
+	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, tag TAG, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = true
 		} else if status != common.OK {
@@ -90,7 +96,7 @@ func (s *NsStatus) GetNsStatus() WalkResult {
 func (s *NsStatus) GetAlarmStatus() WalkResult {
 	StatusMu.RLock()
 	defer StatusMu.RUnlock()
-	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
+	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, tag TAG, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = make(map[ALARM]bool)
 		}
@@ -110,7 +116,7 @@ func (s *NsStatus) GetAlarmStatus() WalkResult {
 func (s *NsStatus) GetNotOkHost() WalkResult {
 	StatusMu.RLock()
 	defer StatusMu.RUnlock()
-	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, status string, result WalkResult) {
+	return s.Walk(func(ns NS, alarmVersion ALARM, host HOST, tag TAG, status string, result WalkResult) {
 		if _, existed := result[ns]; !existed {
 			result[ns] = make(map[HOST]bool)
 		}
@@ -129,12 +135,14 @@ func (s *NsStatus) GetStatusList(level string) []Status {
 	for _, alarmStatus := range *s {
 		for _, hostStatus := range alarmStatus {
 			for _, hostStatus := range hostStatus {
-				if hostStatus.Level == "" {
-					continue
-				}
-				hostStatus.LastTime = ((time.Since(hostStatus.CreateTime)) / time.Second)
-				if level == "" || hostStatus.Level == level {
-					output = append(output, hostStatus)
+				for _, tagStatus := range hostStatus {
+					if tagStatus.Level == "" {
+						continue
+					}
+					tagStatus.LastTime = ((time.Since(tagStatus.CreateTime)) / time.Second)
+					if level == "" || tagStatus.Level == level {
+						output = append(output, tagStatus)
+					}
 				}
 			}
 		}

@@ -4,12 +4,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lodastack/event/config"
+
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
 var (
-	alarmsDirect                 = "loda-alarms"
 	defaultNodeTTL time.Duration = 5
 )
 
@@ -23,14 +24,14 @@ type etcdClient struct {
 
 // Get return value of a key.
 func (c *etcdClient) Get(k string, option *client.GetOptions) (*client.Response, error) {
-	key := alarmsDirect + "/" + k
+	key := config.GetConfig().Etcd.Path + "/" + k
 	return c.kapi.Get(context.Background(), key, option)
 }
 
 // RecursiveGet return etcd/client.Response contain the node and its child nodes.
 func (c *etcdClient) RecursiveGet(k string) (*client.Response, error) {
-	if !strings.HasPrefix(k, "/"+alarmsDirect) {
-		k = alarmsDirect + "/" + k
+	if !strings.HasPrefix(k, config.GetConfig().Etcd.Path) {
+		k = config.GetConfig().Etcd.Path + "/" + k
 	}
 
 	return c.kapi.Get(context.Background(), k, &client.GetOptions{Recursive: true})
@@ -38,14 +39,14 @@ func (c *etcdClient) RecursiveGet(k string) (*client.Response, error) {
 
 // Set set a k/v to etcd with the SetOptions.
 func (c *etcdClient) Set(k, v string, option *client.SetOptions) error {
-	key := alarmsDirect + "/" + k
+	key := config.GetConfig().Etcd.Path + "/" + k
 	_, err := c.kapi.Set(context.Background(), key, v, option)
 	return err
 }
 
 // SetWithTTL set a k-v with TTL.
 func (c *etcdClient) SetWithTTL(k, v string, duration time.Duration) error {
-	key := alarmsDirect + "/" + k
+	key := config.GetConfig().Etcd.Path + "/" + k
 	if duration == 0 {
 		duration = 10 * time.Minute
 	}

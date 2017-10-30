@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/lodastack/event/cluster"
 	"github.com/lodastack/event/config"
@@ -52,12 +51,10 @@ func main() {
 		fmt.Printf("NewCluster error: %s\n", err.Error())
 		return
 	}
+
+	go loda.UpdateOffMachineLoop()
 	go loda.UpdateAlarmsFromLoda()
 	w := work.NewWork(c)
-	time.Sleep(500 * time.Millisecond) // TODO
-	go w.CheckAlarmLoop()
-	go loda.UpdateOffMachineLoop()
 	go query.Start(w)
-
 	select {}
 }

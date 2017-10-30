@@ -19,6 +19,7 @@ type Status struct {
 	Level        string
 	Value        float64
 	Tags         map[string]string
+	TagString    string
 	Reciever     []string
 
 	CTime      string

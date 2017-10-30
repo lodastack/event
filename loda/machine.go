@@ -119,7 +119,8 @@ func oneNsMachine(ns string) (map[string]string, error) {
 	for _, machine := range respMachineData.Data {
 		ip, _ := machine["ip"]
 		hostname, _ := machine["hostname"]
-		if ip != "" && hostname != "" {
+		// NOTE: allow ip is empty.
+		if hostname != "" {
 			machineIps[hostname] = ip
 		}
 	}

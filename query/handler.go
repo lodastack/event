@@ -105,11 +105,12 @@ func clearStatusHandler(resp http.ResponseWriter, req *http.Request) {
 	ns := params.Get("ns")
 	alarm := params.Get("alarm")
 	host := params.Get("host")
+	tagString := params.Get("tagString")
 	if ns == "" || (alarm == "" && host == "") {
 		errResp(resp, http.StatusBadRequest, "invalid param")
 		return
 	}
-	if err := worker.Status.ClearStatus(ns, alarm, host); err != nil {
+	if err := worker.Status.ClearStatus(ns, alarm, host, tagString); err != nil {
 		log.Errorf("Work ClearBlock %s %s %s error: %s.", ns, alarm, host, err.Error())
 		errResp(resp, http.StatusInternalServerError, "handle clear status")
 		return

@@ -24,10 +24,10 @@ const (
 
 type Block interface {
 	// ClearBlock status/times by ns/alarmVersion/host.
-	ClearBlock(ns, version, host string) error
+	ClearBlock(ns, alarmVersion, hostname string, tag map[string]string) error
 
 	// IsBlock check the ns/alarm/host is block or not, set the block status and times.
-	IsBlock(ns string, alarm *loda.Alarm, host string) bool
+	IsBlock(ns string, alarm *loda.Alarm, hostname string, tag map[string]string) bool
 }
 
 type block struct {
@@ -39,8 +39,8 @@ func NewBlock(c Cluster) Block {
 }
 
 // ClearBlock status/times by ns/alarmVersion/host.
-func (b *block) ClearBlock(ns, alarmVersion, host string) error {
-	alarmHostPath := AbsPath(HostKey(ns, alarmVersion, host))
+func (b *block) ClearBlock(ns, alarmVersion, hostname string, tag map[string]string) error {
+	alarmHostPath := AbsPath(TagDir(ns, alarmVersion, hostname, encodeTags(tag)))
 	if err := b.c.RemoveDir(alarmHostPath); err != nil {
 		if !strings.Contains(err.Error(), "Key not found") {
 			return err
@@ -51,11 +51,12 @@ func (b *block) ClearBlock(ns, alarmVersion, host string) error {
 }
 
 // IsBlock check the ns/alarm/host is block or not, set the block status and times.
-func (b *block) IsBlock(ns string, alarm *loda.Alarm, host string) bool {
-	newBlockStatus, newBlockStatusTTL, newBlockTimes, newBlockTimesTTL, isBlock := b.readBlock(ns, alarm, host)
+func (b *block) IsBlock(ns string, alarm *loda.Alarm, hostname string, tag map[string]string) bool {
+	tagString := encodeTags(tag)
+	newBlockStatus, newBlockStatusTTL, newBlockTimes, newBlockTimesTTL, isBlock := b.readBlock(ns, alarm, hostname, tagString)
 	if newBlockStatus != noAction && newBlockTimes != noAction {
-		b.setBlockStatus(ns, alarm.AlarmData.Version, host, newBlockStatus, newBlockStatusTTL)
-		b.setBlockTimes(ns, alarm.AlarmData.Version, host, newBlockTimes, newBlockTimesTTL)
+		b.setBlockStatus(ns, alarm.AlarmData.Version, hostname, tagString, newBlockStatus, newBlockStatusTTL)
+		b.setBlockTimes(ns, alarm.AlarmData.Version, hostname, tagString, newBlockTimes, newBlockTimesTTL)
 	}
 	return isBlock
 }
@@ -75,15 +76,15 @@ func (b *block) IsBlock(ns string, alarm *loda.Alarm, host string) bool {
 //
 // alreadyAlertWhileBlock: Alarm happen when block is not timeout,
 //                         Do nothing.
-func (b *block) readBlock(ns string, alarm *loda.Alarm, host string) (
+func (b *block) readBlock(ns string, alarm *loda.Alarm, hostname, tagString string) (
 	newBlockStatus, newBlockStatusTTL, newBlockTimes, newTimesTTL int, isBlock bool) {
 	var errStatus, errTimes error
-	blockStatus, errStatus := b.getBlockStatus(ns, alarm.AlarmData.Version, host)
+	blockStatus, errStatus := b.getBlockStatus(ns, alarm.AlarmData.Version, hostname, tagString)
 	if errStatus != nil {
 		// Treat this alarm as first happen if block status not exist or read fail.
 		blockStatus = noBlock
 	}
-	blockTimes, errTimes := b.getBlockTimes(ns, alarm.AlarmData.Version, host)
+	blockTimes, errTimes := b.getBlockTimes(ns, alarm.AlarmData.Version, hostname, tagString)
 
 	// Do not block this event and set block times as block times+1 if the block has times but has no status.
 	// Only in this case can the block times is updated to (last blocktimes + 1).
@@ -107,7 +108,7 @@ func (b *block) readBlock(ns string, alarm *loda.Alarm, host string) (
 		newBlockStatusTTL, newTimesTTL = getBlockKeyTTL(alarm.BlockStep, blockTimes, alarm.MaxStackTime, e)
 
 	case alreadyAlertWhileBlock:
-		newBlockStatus, blockTimes = noAction, noAction
+		newBlockStatus, newBlockTimes = noAction, noAction
 		isBlock = true
 	}
 
@@ -130,12 +131,12 @@ func getBlockKeyTTL(step, times, max, alarmCheckInterval int) (statusTTL, timesT
 	return
 }
 
-func (b *block) getBlockStatus(ns, alarmVersion, host string) (int, error) {
-	return b.readFromCluster(BlockStatusKey(ns, alarmVersion, host))
+func (b *block) getBlockStatus(ns, alarmVersion, hostname, tagString string) (int, error) {
+	return b.readFromCluster(BlockStatusKey(ns, alarmVersion, hostname, tagString))
 }
 
-func (b *block) getBlockTimes(ns, alarmVersion, host string) (int, error) {
-	return b.readFromCluster(BlockTimesKey(ns, alarmVersion, host))
+func (b *block) getBlockTimes(ns, alarmVersion, hostname, tagString string) (int, error) {
+	return b.readFromCluster(BlockTimesKey(ns, alarmVersion, hostname, tagString))
 }
 
 func (b *block) readFromCluster(k string) (int, error) {
@@ -153,17 +154,17 @@ func (b *block) readFromCluster(k string) (int, error) {
 }
 
 // set block status with ttl for ns/alarmVersion/host.
-func (b *block) setBlockStatus(ns, alarmVersion, host string, status, statusTTL int) error {
+func (b *block) setBlockStatus(ns, alarmVersion, hostname, tagString string, status, statusTTL int) error {
 	return b.c.SetWithTTL(
-		BlockStatusKey(ns, alarmVersion, host),
+		BlockStatusKey(ns, alarmVersion, hostname, tagString),
 		strconv.Itoa(int(status)),
 		time.Duration(statusTTL)*time.Minute-5*time.Second)
 }
 
 // set block times with ttl for ns/alarmVersion/host.
-func (b *block) setBlockTimes(ns, alarmVersion, host string, times, timesTTL int) error {
+func (b *block) setBlockTimes(ns, alarmVersion, hostname, tagString string, times, timesTTL int) error {
 	return b.c.SetWithTTL(
-		BlockTimesKey(ns, alarmVersion, host),
+		BlockTimesKey(ns, alarmVersion, hostname, tagString),
 		strconv.Itoa(int(times)),
 		time.Duration(timesTTL)*time.Minute+10*time.Second)
 }
