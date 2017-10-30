@@ -1,6 +1,8 @@
 package work
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"sort"
 	"strings"
 	"time"
@@ -114,5 +116,14 @@ func encodeTags(m map[string]string) string {
 		}
 	}
 
-	return string(b)
+	return md5Byte2string(md5.Sum([]byte(b)))
+}
+
+func md5Byte2string(in [16]byte) string {
+	tmp := make([]byte, 16)
+	for _, value := range in {
+		tmp = append(tmp, value)
+	}
+
+	return hex.EncodeToString(tmp[16:])
 }
