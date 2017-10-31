@@ -128,13 +128,19 @@ func (s *NsStatus) GetNotOkHost() WalkResult {
 }
 
 // GetStatusList return status list by level(OK, CRITICAL...).
-func (s *NsStatus) GetStatusList(level string) []Status {
+func (s *NsStatus) GetStatusList(alarmVersion, host, level string) []Status {
 	output := make([]Status, 0)
 	StatusMu.RLock()
 	defer StatusMu.RUnlock()
 	for _, alarmStatus := range *s {
-		for _, hostStatus := range alarmStatus {
-			for _, hostStatus := range hostStatus {
+		for _alarmVersion, hostStatus := range alarmStatus {
+			if alarmVersion != "" && alarmVersion != string(_alarmVersion) {
+				continue
+			}
+			for _host, hostStatus := range hostStatus {
+				if host != "" && host != string(_host) {
+					continue
+				}
 				for _, tagStatus := range hostStatus {
 					if tagStatus.Level == "" {
 						continue
