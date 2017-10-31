@@ -3,7 +3,10 @@ all: build
 fmt:
 	gofmt -l -w -s */
 
-build: fmt 
+dep: fmt
+	${GOBIN}/gdm restore
+
+build: dep 
 	cd cmd/event && go build -v
 
 install: fmt
