@@ -30,8 +30,8 @@ type ClusterStatus interface {
 
 // LocalStatusInf is a simplified interface for manager status from local.
 type LocalStatusInf interface {
-	// GetStatusList return status list by level(OK, CRITICAL...).
-	GetStatusList(level string) []models.Status
+	// GetStatusList return status list alarmVersion/host/level(OK, CRITICAL...).
+	GetStatusList(alarmVersion, host, level string) []models.Status
 
 	// GetNsStatus return WalkResult reveal the ns status.
 	GetNsStatus() models.WalkResult

@@ -73,6 +73,8 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	ns := params.Get("ns")
+	alarmVersion := params.Get("alarmversion")
+	host := params.Get("host")
 	level := params.Get("level")
 	status := params.Get("status")
 
@@ -91,7 +93,7 @@ func statusHandler(resp http.ResponseWriter, req *http.Request) {
 	case "host":
 		succResp(resp, 200, "OK", statusData.GetNotOkHost())
 	default:
-		succResp(resp, 200, "OK", statusData.GetStatusList(status))
+		succResp(resp, 200, "OK", statusData.GetStatusList(alarmVersion, host, status))
 	}
 }
 
