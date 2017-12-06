@@ -54,8 +54,7 @@ type RenderConfig struct {
 }
 
 type SmsConfig struct {
-	Token string `toml:token`
-	Url   string `toml:url`
+	Script string `toml:script`
 }
 
 type WechatConfig struct {
@@ -65,7 +64,6 @@ type WechatConfig struct {
 
 type CommonConfig struct {
 	Listen             string `toml:"listen"`
-	InfluxdPort        int    `toml:"influxdPort"`
 	TopicsPollInterval int    `toml:"topicsPollInterval"`
 	HiddenMetricSuffix string `toml:"hiddenMetricSuffix"`
 
