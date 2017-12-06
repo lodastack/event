@@ -2,12 +2,13 @@ package sms
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
-	"github.com/lodastack/event/requests"
 	"github.com/lodastack/log"
 )
 
@@ -27,15 +28,15 @@ func SendSMS(notifyData models.NotifyData) error {
 
 func sendSMS(mobile, content string) {
 	if mobile == "" || len(mobile) != 11 {
-		log.Error("invalid mobile: %s", mobile)
+		log.Errorf("invalid mobile: %s", mobile)
 		return
 	}
-	if _, err := requests.PostWithHeader(config.GetConfig().Sms.Url,
-		map[string]string{"mobile": mobile, "content": "监控报警:" + content},
-		[]byte{},
-		map[string]string{"authToken": config.GetConfig().Sms.Token},
-		10); err != nil {
-		log.Error("send sms fail: %s", err.Error())
+	if _, err := os.Stat(config.GetConfig().Sms.Script); err != nil {
+		log.Errorf("not found send sms script: %s", config.GetConfig().Sms.Script)
+		return
+	}
+	if out, err := exec.Command("/bin/bash", config.GetConfig().Sms.Script, mobile, content).Output(); err != nil {
+		log.Errorf("run sms script error: %s, output: %s", err.Error(), string(out))
 	}
 }
 
