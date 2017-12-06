@@ -137,7 +137,7 @@ func (w *Work) compareStatusAndLoda() error {
 				log.Infof("get ns(%s) alarm(%s) fail, set it and all dir.", nsInLoda, alarmVersionInLoda)
 				alarmKey := AlarmDir(nsInLoda, alarmVersionInLoda)
 				if err := w.Cluster.Mkdir(alarmKey); err != nil {
-					log.Errorf("create ns %s,alarm %s dir %s fail", nsInLoda, alarmVersionInLoda, alarmKey)
+					log.Errorf("create ns %s,alarm %s dir %s fail: %s", nsInLoda, alarmVersionInLoda, alarmKey, err.Error())
 				}
 			}
 		}
