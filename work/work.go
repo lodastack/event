@@ -16,7 +16,7 @@ import (
 var (
 	interval      time.Duration = 60
 	timeFormat                  = "2006-01-02 15:04:05"
-	alarmLevelMap               = map[string]string{"1": "一级报警", "2": "二级报警"}
+	alarmLevelMap               = map[string]string{"1": "CRIT", "2": "WARN"}
 )
 
 type Work struct {

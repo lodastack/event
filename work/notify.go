@@ -13,9 +13,9 @@ func init() {
 	levelMap = map[string]string{
 		"unknow": "Unknow Level",
 		"OK":     "OK",
-		"1":      "一级报警",
-		"2":      "二级报警",
-		"3":      "三级报警",
+		"1":      "CRIT",
+		"2":      "WARN",
+		"3":      "INFO",
 	}
 }
 
