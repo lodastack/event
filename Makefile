@@ -4,7 +4,7 @@ fmt:
 	gofmt -l -w -s */
 
 dep: fmt
-	${GOBIN}/gdm restore
+	gdm restore
 
 build: dep 
 	cd cmd/event && go build -v
