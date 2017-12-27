@@ -44,7 +44,7 @@ func SendEMail(notifyData models.NotifyData) error {
 		config.GetConfig().Mail.User,
 		config.GetConfig().Mail.Pwd,
 		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""},
-		config.GetConfig().Mail.SubjectPrefix+" "+genMailSubject(notifyData),
+		genMailSubject(notifyData),
 		genMailContent(notifyData),
 		addPng, pngBase64,
 	)
@@ -54,8 +54,8 @@ func genMailSubject(notifyData models.NotifyData) string {
 	if notifyData.Msg != "" {
 		return notifyData.AlarmName
 	}
-	return fmt.Sprintf("%s   %s   is  %s",
-		notifyData.Host, notifyData.Measurement, notifyData.Level)
+	return fmt.Sprintf("%s %s   %s   is  %s",
+		config.GetConfig().Mail.SubjectPrefix, notifyData.Host, notifyData.Measurement, notifyData.Level)
 }
 
 func genMailContent(notifyData models.NotifyData) string {
