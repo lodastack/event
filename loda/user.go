@@ -60,9 +60,15 @@ func GetUserInfo(users []string) []string {
 		log.Errorf("GetUsers fail: %s", err.Error())
 	}
 	var i int
-	for _, receiver := range receiverInfo {
-		receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
-		i++
+	// keep the same order， map don't keep the order
+	for _, username := range users {
+		for _, receiver := range receiverInfo {
+			if username == receiver.Username {
+				receiverInfoSplit[i] = fmt.Sprintf("%s(%s)", receiver.Username, receiver.Mobile)
+				i++
+				break
+			}
+		}
 	}
 	return receiverInfoSplit[:i]
 }
