@@ -40,7 +40,7 @@ func GetUserMobile(username []string) []string {
 	mobiles := make([]string, len(username))
 	var i int
 
-	userMap, _ := getUsers(username...)
+	userMap, _ := GetUsers(username)
 	for _, user := range userMap {
 		if user.Mobile == "" {
 			continue
@@ -51,11 +51,11 @@ func GetUserMobile(username []string) []string {
 	return mobiles[:i]
 }
 
-// GetUserInfo return user info at format username(mobile).
+// GetUserSurmary return user info at format username(mobile).
 // e.g: return user(mobile) for get user info to notify.
-func GetUserInfo(users []string) []string {
+func GetUserSurmary(users []string) []string {
 	receiverInfoSplit := make([]string, len(users))
-	receiverInfo, err := getUsers(users...)
+	receiverInfo, err := GetUsers(users)
 	if err != nil {
 		log.Errorf("GetUsers fail: %s", err.Error())
 	}
@@ -73,8 +73,8 @@ func GetUserInfo(users []string) []string {
 	return receiverInfoSplit[:i]
 }
 
-// getUsers return user information list of usernames.
-func getUsers(usernames ...string) (map[string]User, error) {
+// GetUsers return user information list of usernames.
+func GetUsers(usernames []string) (map[string]User, error) {
 	userMap := make(map[string]User, len(usernames))
 	userMu.RLock()
 	usernameUnknown := make([]string, len(usernames))
@@ -84,7 +84,9 @@ func getUsers(usernames ...string) (map[string]User, error) {
 			usernameUnknown[i] = username
 			i++
 		} else {
-			userMap[username] = user
+			if user.Alert != "disable" {
+				userMap[username] = user
+			}
 		}
 	}
 	usernameUnknown = usernameUnknown[:i]
@@ -99,7 +101,9 @@ func getUsers(usernames ...string) (map[string]User, error) {
 		}
 		for username, user := range userMapFromServer {
 			UserMap[username] = user
-			userMap[username] = user
+			if user.Alert != "disable" {
+				userMap[username] = user
+			}
 		}
 		userMu.Unlock()
 	}
@@ -111,6 +115,7 @@ func getUsers(usernames ...string) (map[string]User, error) {
 type User struct {
 	Username string `json:"username"`
 	Mobile   string `json:"mobile"`
+	Alert    string `json:"alert,omitempty"`
 }
 
 // RespUser is response from regsitry to query user.
