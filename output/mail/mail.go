@@ -11,6 +11,7 @@ import (
 	"github.com/lodastack/log"
 
 	"github.com/lodastack/event/config"
+	"github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
 )
 
@@ -27,7 +28,19 @@ var mailSuffix, mailSubject string
 func SendEMail(notifyData models.NotifyData) error {
 	revieve := make([]string, len(notifyData.Receivers))
 	mailSuffix = config.GetConfig().Mail.MailSuffix
-	for index, username := range notifyData.Receivers {
+
+	var allowedUsers []string
+	rsmap, err := loda.GetUsers(notifyData.Receivers)
+	if err != nil {
+		log.Errorf("mail send get users failed: %s", err)
+		allowedUsers = notifyData.Receivers
+		rsmap = nil
+	}
+	for _, u := range rsmap {
+		allowedUsers = append(allowedUsers, u.Username)
+	}
+
+	for index, username := range allowedUsers {
 		revieve[index] = username + mailSuffix
 	}
 

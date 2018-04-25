@@ -35,7 +35,7 @@ var (
 // newMetric make []m.Metric with the param.
 func (s *SdkLog) newMetric(name, ns, measurement, alarmLevel, host, status string, receives []string, value float64) []m.Metric {
 	ms := make([]m.Metric, 1)
-	receiverList := loda.GetUserInfo(receives)
+	receiverList := loda.GetUserSurmary(receives)
 
 	ms[0] = m.Metric{
 		Timestamp: time.Now().Unix(),

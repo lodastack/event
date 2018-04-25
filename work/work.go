@@ -163,7 +163,7 @@ func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, hostname, ip, leve
 
 		Value:    common.SetPrecision((*eventData.Data.Series[0]).Values[0][1].(float64), 2),
 		Tags:     (*eventData.Data.Series[0]).Tags,
-		Reciever: loda.GetUserInfo(receives),
+		Reciever: loda.GetUserSurmary(receives),
 	}
 
 	// Set the createtime of status by previous if the status is the same as previous.
