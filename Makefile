@@ -6,7 +6,7 @@ fmt:
 dep: fmt
 	gdm restore
 
-build: dep 
+build: dep
 	cd cmd/event && go build -v
 
 install: fmt

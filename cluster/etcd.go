@@ -1,13 +1,13 @@
 package cluster
 
 import (
+	"context"
 	"strings"
 	"time"
 
 	"github.com/lodastack/event/config"
 
 	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
 )
 
 var (
