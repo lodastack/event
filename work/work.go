@@ -179,6 +179,12 @@ func (w *Work) setStatusAndLogToSDK(ns string, alarm m.Alarm, hostname, ip, leve
 			if err := sdkLog.StatusChange(alarm.Name, ns, alarm.Measurement, alarm.Level, hostname, oldStatus.Level, receives, newStatus.Value, oldStatus.CreateTime); err != nil {
 				log.Errorf("log status fail: %s", err.Error())
 			}
+			// We need to record a new status if level changed from "*" -> !OK
+			if newStatus.Level != "OK" {
+				if err := sdkLog.NewStatus(alarm.Name, ns, alarm.Measurement, alarm.Level, hostname, level, receives, newStatus.Value); err != nil {
+					log.Errorf("log status fail: %s", err.Error())
+				}
+			}
 		}
 	}
 	return w.Status.SetStatus(ns, alarm, hostname, encodeTags(eventData.Tag()), newStatus)
