@@ -133,7 +133,7 @@ func SendMail(host string, port int, userName string, password string, from stri
 		Message   string
 		PngBase64 []byte
 	}{
-		userName,
+		from,
 		strings.Join([]string(to), ","),
 		strings.Join([]string(cc), ","),
 		subject,
