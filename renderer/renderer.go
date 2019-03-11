@@ -31,9 +31,15 @@ type RenderOps struct {
 	// Timeout string
 }
 
-func RenderToPng(params *RenderOps) (string, error) {
-	binPath, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, PhantomjsBin))
-	renderScript, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, RenderScript))
+func RenderToPng(params RenderOps) (string, error) {
+	binPath, err := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, PhantomjsBin))
+	if err != nil {
+		return "", err
+	}
+	renderScript, err := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, RenderScript))
+	if err != nil {
+		return "", err
+	}
 
 	replaceLetterFunc := func(r rune) rune {
 		if r == '"' || r == '\'' || r == '/' || r == '(' || r == ')' {
@@ -42,10 +48,13 @@ func RenderToPng(params *RenderOps) (string, error) {
 		return r
 	}
 	filename := strings.Map(replaceLetterFunc, params.ID+".png")
-	pngPath, _ := filepath.Abs(filepath.Join(config.GetConfig().Render.ImgDir, filename))
+	pngPath, err := filepath.Abs(filepath.Join(config.GetConfig().Render.ImgDir, filename))
+	if err != nil {
+		return "", err
+	}
 
-	renderUrl := fmt.Sprintf("%s?ns=%s&measurement=%s&starttime=%d&endtime=%d&fn=%s&title=%s&where=%s",
-		config.GetConfig().Render.RenderUrl, params.Ns, params.Measurement,
+	renderURL := fmt.Sprintf("%s?ns=%s&measurement=%s&starttime=%d&endtime=%d&fn=%s&title=%s&where=%s",
+		config.GetConfig().Render.RenderURL, params.Ns, params.Measurement,
 		params.Time.Add(-60*time.Minute).Unix()*1000, params.Time.Unix()*1000,
 		params.Fn, params.Title, params.Where)
 	cmdArgs := []string{
@@ -53,7 +62,7 @@ func RenderToPng(params *RenderOps) (string, error) {
 		"--proxy-type=none",
 		renderScript,
 		"png=" + pngPath,
-		"url=" + renderUrl,
+		"url=" + renderURL,
 		"width=1000",
 		"height=500",
 	}
