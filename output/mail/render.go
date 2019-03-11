@@ -13,17 +13,17 @@ import (
 )
 
 func getPngPath(notifyData models.NotifyData) (string, error) {
-	var whereSql, whereStr string
+	var whereSQL, whereStr string
 	//where=("host"='xxx') AND ("interface"='xxx')
 
 	for k, v := range notifyData.Tags {
-		whereSql = fmt.Sprintf(" (\"%s\"__'%s') AND %s", k, v, whereSql)
+		whereSQL = fmt.Sprintf(" (\"%s\"__'%s') AND %s", k, v, whereSQL)
 		whereStr = fmt.Sprintf("%s %s: %s", whereStr, k, v)
 	}
-	whereSql = strings.TrimRight(whereSql, "AND ")
+	whereSQL = strings.TrimRight(whereSQL, "AND ")
 
 	ID := fmt.Sprintf("%s-%s-%s-%s",
-		notifyData.Ns, notifyData.Measurement, strings.Replace(whereSql, " ", "", -1), notifyData.Time.Format("2006-01-02T15:04:05"))
+		notifyData.Ns, notifyData.Measurement, strings.Replace(whereSQL, " ", "", -1), notifyData.Time.Format("2006-01-02T15:04:05"))
 
 	params := renderer.RenderOps{
 		ID:          ID,
@@ -32,9 +32,9 @@ func getPngPath(notifyData models.NotifyData) (string, error) {
 		Time:        time.Now(), // TODO: or alertMsg.Time?
 		Fn:          "mean",
 		Title:       notifyData.Ns + " " + notifyData.Measurement + whereStr,
-		Where:       whereSql,
+		Where:       whereSQL,
 	}
-	return renderer.RenderToPng(&params)
+	return renderer.RenderToPng(params)
 }
 
 func readPngToBase64(path string) ([]byte, error) {
@@ -52,6 +52,9 @@ func getPngBase64(notifyData models.NotifyData) ([]byte, error) {
 	filePath, err := getPngPath(notifyData)
 	if err != nil {
 		return nil, err
+	}
+	if !strings.Contains(filePath, notifyData.Ns) {
+		return nil, fmt.Errorf("should keep the same NS, content:%s chart:%s", notifyData.Ns, filePath)
 	}
 	return readPngToBase64(filePath)
 }

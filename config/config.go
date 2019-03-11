@@ -50,7 +50,7 @@ type MailConfig struct {
 type RenderConfig struct {
 	PhantomDir string `toml:"phantomdir"`
 	ImgDir     string `toml:"imgdir"`
-	RenderUrl  string `toml:"renderurl"`
+	RenderURL  string `toml:"renderurl"`
 }
 
 type SmsConfig struct {
