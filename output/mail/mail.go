@@ -52,6 +52,11 @@ func SendEMail(notifyData models.NotifyData) error {
 		log.Errorf("getPngBase64 fail, msg: %+v, err: %+v, length: %d", notifyData, err, len(pngBase64))
 	}
 
+	// deploy case
+	if notifyData.Msg != "" {
+		addPng = false
+	}
+
 	return SendMail(config.GetConfig().Mail.Host,
 		config.GetConfig().Mail.Port,
 		config.GetConfig().Mail.User,
