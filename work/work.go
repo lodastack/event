@@ -214,9 +214,6 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 
 	groups := strings.Split(alarm.AlarmData.Groups, ",")
 	reveives := loda.GetGroupUsers(groups)
-	if len(reveives) == 0 {
-		return errors.New("empty recieve: " + strings.Join(groups, ","))
-	}
 
 	// update alarm status
 	if err := w.setStatusAndLogToSDK(ns, alarm.AlarmData, host, ip, eventData.Level.String(), reveives, eventData); err != nil {

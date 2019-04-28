@@ -1,6 +1,8 @@
 package work
 
 import (
+	"errors"
+
 	"github.com/lodastack/event/common"
 	"github.com/lodastack/event/models"
 	o "github.com/lodastack/event/output"
@@ -20,6 +22,10 @@ func init() {
 }
 
 func send(alarmName, alarmLevel, expression, alertLevel, ip string, alertTypes []string, recievers []string, eventData models.EventData) error {
+	if len(recievers) == 0 {
+		return errors.New("empty recieve: ns:" + eventData.Ns + " Name:" + alarmName)
+	}
+
 	host, measurement := (*eventData.Data.Series[0]).Tags["host"], (*eventData.Data.Series[0]).Name
 	tags := (*eventData.Data.Series[0]).Tags
 	value := (*eventData.Data.Series[0]).Values[0][1].(float64)
