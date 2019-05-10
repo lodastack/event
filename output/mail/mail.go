@@ -26,7 +26,7 @@ const (
 var mailSuffix, mailSubject string
 
 func SendEMail(notifyData models.NotifyData) error {
-	revieve := make([]string, len(notifyData.Receivers))
+	var revieve []string
 	mailSuffix = config.GetConfig().Mail.MailSuffix
 
 	var allowedUsers []string
@@ -40,8 +40,11 @@ func SendEMail(notifyData models.NotifyData) error {
 		allowedUsers = append(allowedUsers, u.Username)
 	}
 
-	for index, username := range allowedUsers {
-		revieve[index] = username + mailSuffix
+	for _, username := range allowedUsers {
+		u := strings.TrimSpace(username)
+		if u != "" {
+			revieve = append(revieve, u+mailSuffix)
+		}
 	}
 
 	var addPng bool
@@ -163,6 +166,9 @@ func SendMail(host string, port int, userName string, password string, from stri
 		to,
 		buffer.Bytes())
 
+	if err != nil {
+		log.Errorf("send mail: to [%v] subject [%s] %s", to, subject, err)
+	}
 	return err
 }
 
