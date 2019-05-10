@@ -163,6 +163,9 @@ func SendMail(host string, port int, userName string, password string, from stri
 		to,
 		buffer.Bytes())
 
+	if err != nil {
+		log.Errorf("send mail: to [%v] subject [%s] %s", to, subject, err)
+	}
 	return err
 }
 
