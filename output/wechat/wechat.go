@@ -2,12 +2,12 @@ package wechat
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/lodastack/event/config"
-	// "github.com/lodastack/event/loda"
 	"github.com/lodastack/event/models"
-	"github.com/lodastack/event/requests"
 	"github.com/lodastack/log"
 )
 
@@ -29,13 +29,15 @@ func SendWechat(notifyData models.NotifyData) error {
 		log.Errorf("invalid Users: %v", notifyData.Receivers)
 		return nil
 	}
-	_, err := requests.PostWithHeader(config.GetConfig().Wechat.Url,
-		map[string]string{"account": strings.Join(notifyData.Receivers, "|"), "title": title, "content": content}, []byte{},
-		map[string]string{"authToken": config.GetConfig().Wechat.Token}, 10)
-	if err != nil {
-		log.Error("send Wechat fail: %s", err.Error())
-	}
 
+	users := strings.Join(notifyData.Receivers, "|")
+	if _, err := os.Stat(config.GetConfig().Wechat.Script); err != nil {
+		log.Errorf("not found send wechat script: %s", config.GetConfig().Wechat.Script)
+		return err
+	}
+	if out, err := exec.Command("/bin/bash", config.GetConfig().Wechat.Script, users, title, content).Output(); err != nil {
+		log.Errorf("run wechat script error: %s, output: %s", err.Error(), string(out))
+	}
 	return nil
 }
 

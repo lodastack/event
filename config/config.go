@@ -58,8 +58,7 @@ type SmsConfig struct {
 }
 
 type WechatConfig struct {
-	Token string `toml:token`
-	Url   string `toml:url`
+	Script string `toml:script`
 }
 
 type CommonConfig struct {
