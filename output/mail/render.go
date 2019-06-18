@@ -12,7 +12,7 @@ import (
 	"github.com/lodastack/log"
 )
 
-func getPngPath(notifyData models.NotifyData) (string, error) {
+func renderOpts(notifyData models.NotifyData) renderer.RenderOps {
 	var whereSQL, whereStr string
 	//where=("host"='xxx') AND ("interface"='xxx')
 
@@ -34,7 +34,15 @@ func getPngPath(notifyData models.NotifyData) (string, error) {
 		Title:       notifyData.Ns + " " + notifyData.Measurement + whereStr,
 		Where:       whereSQL,
 	}
-	return renderer.RenderToPng(params)
+	return params
+}
+
+func pngLocalPath(nd models.NotifyData) (string, error) {
+	return renderer.RenderToPng(renderOpts(nd))
+}
+
+func PngLink(nd models.NotifyData) string {
+	return renderer.RenderURL(renderOpts(nd))
 }
 
 func readPngToBase64(path string) ([]byte, error) {
@@ -49,7 +57,7 @@ func readPngToBase64(path string) ([]byte, error) {
 }
 
 func getPngBase64(notifyData models.NotifyData) ([]byte, error) {
-	filePath, err := getPngPath(notifyData)
+	filePath, err := pngLocalPath(notifyData)
 	if err != nil {
 		return nil, err
 	}

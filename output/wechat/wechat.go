@@ -8,6 +8,7 @@ import (
 
 	"github.com/lodastack/event/config"
 	"github.com/lodastack/event/models"
+	"github.com/lodastack/event/output/mail"
 	"github.com/lodastack/log"
 )
 
@@ -35,7 +36,7 @@ func SendWechat(notifyData models.NotifyData) error {
 		log.Errorf("not found send wechat script: %s", config.GetConfig().Wechat.Script)
 		return err
 	}
-	if out, err := exec.Command("/bin/bash", config.GetConfig().Wechat.Script, users, title, content).Output(); err != nil {
+	if out, err := exec.Command("/bin/bash", config.GetConfig().Wechat.Script, users, title, content, mail.PngLink(notifyData)).Output(); err != nil {
 		log.Errorf("run wechat script error: %s, output: %s", err.Error(), string(out))
 	}
 	return nil

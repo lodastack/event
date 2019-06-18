@@ -4,6 +4,7 @@ fmt:
 	gofmt -l -w -s */
 
 dep: fmt
+	export GO111MODULE=off
 	gdm restore
 
 build: dep

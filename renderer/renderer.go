@@ -31,6 +31,13 @@ type RenderOps struct {
 	// Timeout string
 }
 
+func RenderURL(params RenderOps) string {
+	return fmt.Sprintf("%s?ns=%s&measurement=%s&starttime=%d&endtime=%d&fn=%s&title=%s&where=%s",
+		config.GetConfig().Render.RenderURL, params.Ns, params.Measurement,
+		params.Time.Add(-60*time.Minute).Unix()*1000, params.Time.Unix()*1000,
+		params.Fn, params.Title, params.Where)
+}
+
 func RenderToPng(params RenderOps) (string, error) {
 	binPath, err := filepath.Abs(filepath.Join(config.GetConfig().Render.PhantomDir, PhantomjsBin))
 	if err != nil {
@@ -53,10 +60,7 @@ func RenderToPng(params RenderOps) (string, error) {
 		return "", err
 	}
 
-	renderURL := fmt.Sprintf("%s?ns=%s&measurement=%s&starttime=%d&endtime=%d&fn=%s&title=%s&where=%s",
-		config.GetConfig().Render.RenderURL, params.Ns, params.Measurement,
-		params.Time.Add(-60*time.Minute).Unix()*1000, params.Time.Unix()*1000,
-		params.Fn, params.Title, params.Where)
+	renderURL := RenderURL(params)
 	cmdArgs := []string{
 		"--ignore-ssl-errors=true",
 		"--proxy-type=none",
