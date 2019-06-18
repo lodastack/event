@@ -2,6 +2,7 @@ package wechat
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -36,7 +37,7 @@ func SendWechat(notifyData models.NotifyData) error {
 		log.Errorf("not found send wechat script: %s", config.GetConfig().Wechat.Script)
 		return err
 	}
-	if out, err := exec.Command("/bin/bash", config.GetConfig().Wechat.Script, users, title, content, mail.PngLink(notifyData)).Output(); err != nil {
+	if out, err := exec.Command("/bin/bash", config.GetConfig().Wechat.Script, users, title, content, url.QueryEscape(mail.PngLink(notifyData))).Output(); err != nil {
 		log.Errorf("run wechat script error: %s, output: %s", err.Error(), string(out))
 	}
 	return nil
