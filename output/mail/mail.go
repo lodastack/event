@@ -64,7 +64,7 @@ func SendEMail(notifyData models.NotifyData) error {
 		config.GetConfig().Mail.Port,
 		config.GetConfig().Mail.User,
 		config.GetConfig().Mail.Pwd,
-		config.GetConfig().Mail.User+mailSuffix, revieve, []string{""},
+		config.GetConfig().Mail.User, revieve, []string{""},
 		genMailSubject(notifyData),
 		genMailContent(notifyData),
 		addPng, pngBase64,
