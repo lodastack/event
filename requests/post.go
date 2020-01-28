@@ -76,13 +76,13 @@ func PostWithHeader(URL string, queryMap map[string]string, body []byte, header 
 
 	res, err := client.Do(req)
 	if err != nil {
-		log.Error("post fail: %s", err.Error())
+		log.Errorf("post fail: %s", err.Error())
 		return nil, err
 	}
 	defer res.Body.Close()
 	resp, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Error("read response fail: %s", err.Error())
+		log.Errorf("read response fail: %s", err.Error())
 		return nil, err
 	}
 
