@@ -3,11 +3,9 @@ all: build
 fmt:
 	gofmt -l -w -s */
 
-dep: fmt
-	export GO111MODULE=off
-	gdm restore
-
-build: dep
+build: fmt
+	export GO111MODULE=on
+	export GOPROXY=https://goproxy.io,direct
 	cd cmd/event && go build -v
 
 install: fmt
