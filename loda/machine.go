@@ -176,6 +176,19 @@ func IsOfflineMachine(ns, hostname string) bool {
 	return true
 }
 
+// IsExist return a machine is exists or not.
+// It affects by cache time.
+func IsExist(ns, hostname string) bool {
+	machineMu.RLock()
+	defer machineMu.RUnlock()
+	nsMachine, ok := Machines[ns]
+	if !ok || len(nsMachine) == 0 {
+		return false
+	}
+	_, ok = nsMachine[hostname]
+	return ok
+}
+
 // MachineIP return ip by hostname.
 // Return offline status if the hostname is not found.
 func MachineIP(ns, hostname string) (string, bool) {
