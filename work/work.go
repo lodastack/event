@@ -206,9 +206,11 @@ func (w *Work) HandleEvent(ns, alarmversion string, eventData models.EventData) 
 		log.Debug("event data has no host, maybe cluster alarm.")
 	}
 
-	if loda.IsOfflineMachine(ns, host) || !loda.IsExist(ns, host) {
-		log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
-		return nil
+	if !strings.Contains(alarm.AlarmData.Measurement,"API") {
+		if loda.IsOfflineMachine(ns, host) || !loda.IsExist(ns, host) {
+			log.Warningf("ns %s hostname %s is offline, not alert", ns, host)
+			return nil
+		}
 	}
 	ip, _ := loda.MachineIP(ns, host)
 
