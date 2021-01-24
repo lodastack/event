@@ -17,16 +17,16 @@ const (
 )
 
 func SendSMS(notifyData models.NotifyData) error {
-	mobiles := loda.GetUserMobile(notifyData.Receivers)
+	usermobiles := loda.GetUserMobile(notifyData.Receivers)
 	content := genSmsContent(notifyData)
 
-	for _, mobile := range mobiles {
-		go sendSMS(mobile, content)
+	for user, mobile := range usermobiles {
+		go sendSMS(mobile, content, user)
 	}
 	return nil
 }
 
-func sendSMS(mobile, content string) {
+func sendSMS(mobile, content, user string) {
 	if mobile == "" || len(mobile) != 11 {
 		log.Errorf("invalid mobile: %s", mobile)
 		return
@@ -35,7 +35,7 @@ func sendSMS(mobile, content string) {
 		log.Errorf("not found send sms script: %s", config.GetConfig().Sms.Script)
 		return
 	}
-	if out, err := exec.Command("/bin/bash", config.GetConfig().Sms.Script, mobile, content).Output(); err != nil {
+	if out, err := exec.Command("/bin/bash", config.GetConfig().Sms.Script, mobile, content, user).Output(); err != nil {
 		log.Errorf("run sms script error: %s, output: %s", err.Error(), string(out))
 	}
 }
