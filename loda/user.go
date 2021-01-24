@@ -35,20 +35,19 @@ func clearUserMap() {
 	}
 }
 
-// GetUserMobile return mobile list for users.
-func GetUserMobile(username []string) []string {
-	mobiles := make([]string, len(username))
-	var i int
+// GetUserMobile return user mobile info.
+func GetUserMobile(username []string) map[string]string {
+
+	usermobile := make(map[string]string)
 
 	userMap, _ := GetUsers(username)
 	for _, user := range userMap {
 		if user.Mobile == "" {
 			continue
 		}
-		mobiles[i] = user.Mobile
-		i++
+		usermobile[user.Username] = user.Mobile
 	}
-	return mobiles[:i]
+	return usermobile
 }
 
 // GetUserSurmary return user info at format username(mobile).
