@@ -42,6 +42,7 @@ type MailConfig struct {
 	Pwd  string `toml:"pwd"`
 	Host string `toml:"host"`
 	Port int    `toml:"port"`
+	From string `toml:"from"`
 
 	MailSuffix    string `toml:"mailsuffix"`
 	SubjectPrefix string `toml:subjectprefix`
