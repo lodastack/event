@@ -10,5 +10,4 @@ jobs:
     working_directory: /go/src/github.com/lodastack/registry/
     steps:
       - checkout
-      - run: sudo apt-get install -y bzr 
       - run: bash circle-test.sh
