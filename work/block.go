@@ -66,16 +66,19 @@ func (b *block) IsBlock(ns string, alarm *loda.Alarm, hostname string, tag map[s
 // TimesTTL is statusTTL + alarm check interval, because event would happen not exactly which influence by net/machine and the other factors.
 //
 // noBlock:                The alarm happen first time, can not read any block status and times.
-//                         Do not block this alarm.
-//                         Set block times as 1 and set block status as alreadyAlertWhileBlock.
+//
+//	Do not block this alarm.
+//	Set block times as 1 and set block status as alreadyAlertWhileBlock.
 //
 // addBlock:               Alarm occurs within one of the collect interval after last block, so can read block times and not read block status.
-//                         Do not block this alarm.
-//                         Only in this case can update block times as blocktimes+1, set status as alreadyAlertWhileBlock.
-//                         This status may be caused event happen at time which statusTTL timeout but in one alarm check interval.
+//
+//	Do not block this alarm.
+//	Only in this case can update block times as blocktimes+1, set status as alreadyAlertWhileBlock.
+//	This status may be caused event happen at time which statusTTL timeout but in one alarm check interval.
 //
 // alreadyAlertWhileBlock: Alarm happen when block is not timeout,
-//                         Do nothing.
+//
+//	Do nothing.
 func (b *block) readBlock(ns string, alarm *loda.Alarm, hostname, tagString string) (
 	newBlockStatus, newBlockStatusTTL, newBlockTimes, newTimesTTL int, isBlock bool) {
 	var errStatus, errTimes error

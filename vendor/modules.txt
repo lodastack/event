@@ -1,0 +1,118 @@
+# github.com/BurntSushi/toml v0.3.1
+## explicit
+github.com/BurntSushi/toml
+# github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40
+## explicit
+# github.com/boltdb/bolt v1.3.1
+## explicit
+github.com/boltdb/bolt
+# github.com/coreos/etcd v2.3.8+incompatible
+## explicit
+github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context
+github.com/coreos/etcd/client
+github.com/coreos/etcd/pkg/pathutil
+github.com/coreos/etcd/pkg/types
+# github.com/dgrijalva/jwt-go v3.2.0+incompatible
+## explicit
+github.com/dgrijalva/jwt-go
+# github.com/dgryski/go-bits v0.0.0-20180113010104-bd8a69a71dc2
+## explicit
+# github.com/dgryski/go-bitstream v0.0.0-20180413035011-3522498ce2c8
+## explicit
+# github.com/evanphx/json-patch v4.5.0+incompatible
+## explicit
+github.com/evanphx/json-patch
+# github.com/geoffgarside/ber v0.0.0-20190912223231-00c19d63973f
+## explicit
+github.com/geoffgarside/ber
+# github.com/gogo/protobuf v1.3.1
+## explicit
+github.com/gogo/protobuf/proto
+# github.com/golang/snappy v0.0.1
+## explicit
+# github.com/influxdata/influxdb v1.1.4
+## explicit
+github.com/influxdata/influxdb
+github.com/influxdata/influxdb/influxql
+github.com/influxdata/influxdb/influxql/internal
+github.com/influxdata/influxdb/influxql/neldermead
+github.com/influxdata/influxdb/models
+github.com/influxdata/influxdb/pkg/escape
+github.com/influxdata/influxdb/toml
+github.com/influxdata/influxdb/uuid
+# github.com/influxdata/kapacitor v1.2.0
+## explicit
+github.com/influxdata/kapacitor/alert
+github.com/influxdata/kapacitor/auth
+github.com/influxdata/kapacitor/bufpool
+github.com/influxdata/kapacitor/client/v1
+github.com/influxdata/kapacitor/command
+github.com/influxdata/kapacitor/expvar
+github.com/influxdata/kapacitor/services/alert
+github.com/influxdata/kapacitor/services/alerta
+github.com/influxdata/kapacitor/services/hipchat
+github.com/influxdata/kapacitor/services/httpd
+github.com/influxdata/kapacitor/services/logging
+github.com/influxdata/kapacitor/services/opsgenie
+github.com/influxdata/kapacitor/services/pagerduty
+github.com/influxdata/kapacitor/services/slack
+github.com/influxdata/kapacitor/services/smtp
+github.com/influxdata/kapacitor/services/snmptrap
+github.com/influxdata/kapacitor/services/storage
+github.com/influxdata/kapacitor/services/telegram
+github.com/influxdata/kapacitor/services/victorops
+github.com/influxdata/kapacitor/vars
+# github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368
+## explicit
+# github.com/influxdata/wlog v0.0.0-20160411224016-7c63b0a71ef8
+## explicit
+github.com/influxdata/wlog
+# github.com/json-iterator/go v1.1.9
+## explicit
+github.com/json-iterator/go
+# github.com/jwilder/encoding v0.0.0-20170811194829-b4e1701a28ef
+## explicit
+# github.com/k-sone/snmpgo v3.2.0+incompatible
+## explicit
+github.com/k-sone/snmpgo
+# github.com/kimor79/gollectd v1.0.0
+## explicit
+# github.com/lodastack/log v0.0.0-20161025094532-b25a4d2e8c22
+## explicit
+github.com/lodastack/log
+# github.com/lodastack/models v0.0.0-20190318082849-326fc099cf31
+## explicit
+github.com/lodastack/models
+# github.com/lodastack/sdk-go v0.0.0-20170303095045-58b4c40298f6
+## explicit
+github.com/lodastack/sdk-go
+# github.com/mitchellh/mapstructure v1.1.2
+## explicit
+github.com/mitchellh/mapstructure
+# github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421
+github.com/modern-go/concurrent
+# github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
+github.com/modern-go/reflect2
+# github.com/myesui/uuid v1.0.0
+## explicit
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
+# github.com/rakyll/statik v0.1.6
+## explicit
+# github.com/twinj/uuid v1.0.0
+## explicit
+github.com/twinj/uuid
+# golang.org/x/crypto v0.0.0-20190506204251-e1dfcc566284
+## explicit
+# golang.org/x/sys v0.0.0-20190412213103-97732733099d
+golang.org/x/sys/unix
+# gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc
+## explicit
+gopkg.in/alexcesaro/quotedprintable.v3
+# gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+## explicit
+gopkg.in/gomail.v2
+# gopkg.in/stretchr/testify.v1 v1.2.2
+## explicit

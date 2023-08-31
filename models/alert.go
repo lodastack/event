@@ -22,7 +22,8 @@ type EventData struct {
 
 // Host return the hostname in first series tags.
 // NOTE: Kapacitor task will group by host, so the hostname is same in series.
-//       But the series maybe has no hostname tag if the alarm in loda set cluster alert mode(not group by host).
+//
+//	But the series maybe has no hostname tag if the alarm in loda set cluster alert mode(not group by host).
 func (e *EventData) Host() (string, bool) {
 	if !e.hasSeries() {
 		return "", false
